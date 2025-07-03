@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Upload, MessageCircle, Trash2, Clock, FileIcon, Plus, Search, Filter } from 'lucide-react';
+import { FileText, Upload, MessageCircle, Trash2, Clock, FileIcon, Plus, Search, Filter, Sparkles, TrendingUp, Zap } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 import FileUpload from '../components/FileUpload';
 import LoadingSpinner from '../components/LoadingSpinner';
+import GlassCard from '../components/ui/GlassCard';
+import AnimatedButton from '../components/ui/AnimatedButton';
+import FloatingElements from '../components/ui/FloatingElements';
 import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
 
@@ -50,7 +54,6 @@ const Dashboard: React.FC = () => {
   const handleUploadComplete = async (documentId: string) => {
     setShowUpload(false);
     await fetchDocuments();
-    // Navigate to chat after upload
     setTimeout(() => {
       navigate(`/chat/${documentId}`);
     }, 1000);
@@ -82,11 +85,11 @@ const Dashboard: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed': return 'text-green-600 bg-green-100';
-      case 'processing': return 'text-blue-600 bg-blue-100';
-      case 'uploading': return 'text-yellow-600 bg-yellow-100';
-      case 'failed': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
+      case 'completed': return 'text-green-600 bg-green-500/20 border-green-500/30';
+      case 'processing': return 'text-blue-600 bg-blue-500/20 border-blue-500/30';
+      case 'uploading': return 'text-yellow-600 bg-yellow-500/20 border-yellow-500/30';
+      case 'failed': return 'text-red-600 bg-red-500/20 border-red-500/30';
+      default: return 'text-gray-600 bg-gray-500/20 border-gray-500/30';
     }
   };
 
@@ -97,220 +100,317 @@ const Dashboard: React.FC = () => {
   });
 
   if (loading) {
-    return <LoadingSpinner />;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner />
+      </div>
+    );
   }
 
   if (showUpload) {
     return (
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-8">
-          <button
-            onClick={() => setShowUpload(false)}
-            className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+      <div className="min-h-screen relative">
+        <FloatingElements />
+        <div className="relative z-10 max-w-4xl mx-auto pt-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8"
           >
-            ← Back to Dashboard
-          </button>
+            <AnimatedButton 
+              variant="ghost" 
+              onClick={() => setShowUpload(false)}
+              className="mb-6"
+            >
+              ← Back to Dashboard
+            </AnimatedButton>
+          </motion.div>
+          
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="text-center mb-8"
+          >
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
+              Upload New Document
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400 text-lg">
+              Upload a PDF to start having intelligent conversations
+            </p>
+          </motion.div>
+          
+          <FileUpload onUploadComplete={handleUploadComplete} />
         </div>
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Upload New Document</h1>
-          <p className="text-gray-600">Upload a PDF to start chatting with your document</p>
-        </div>
-        <FileUpload onUploadComplete={handleUploadComplete} />
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Your Documents</h1>
-            <p className="mt-2 text-gray-600">
-              Welcome back, {user?.username}! You have {documents.length} document{documents.length !== 1 ? 's' : ''}.
-            </p>
-          </div>
-          <button
-            onClick={() => setShowUpload(true)}
-            className="mt-4 sm:mt-0 inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            Upload PDF
-          </button>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <FileText className="h-8 w-8 text-blue-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Total Documents</p>
-              <p className="text-2xl font-bold text-gray-900">{documents.length}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <MessageCircle className="h-8 w-8 text-green-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Ready to Chat</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {documents.filter(doc => doc.processingStatus === 'completed').length}
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <Clock className="h-8 w-8 text-yellow-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Processing</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {documents.filter(doc => doc.processingStatus === 'processing').length}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Search and Filter */}
-      <div className="mb-6 flex flex-col sm:flex-row gap-4">
-        <div className="flex-1 relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-5 w-5 text-gray-400" />
-          </div>
-          <input
-            type="text"
-            placeholder="Search documents..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
-        <select
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+    <div className="min-h-screen relative">
+      <FloatingElements />
+      <div className="relative z-10 max-w-7xl mx-auto">
+        {/* Hero Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="text-center mb-12"
         >
-          <option value="all">All Documents</option>
-          <option value="completed">Ready to Chat</option>
-          <option value="processing">Processing</option>
-          <option value="failed">Failed</option>
-        </select>
-      </div>
-
-      {/* Documents Grid */}
-      {filteredDocuments.length === 0 ? (
-        <div className="text-center py-12">
-          <FileText className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">
-            {documents.length === 0 ? 'No documents yet' : 'No documents match your search'}
-          </h3>
-          <p className="mt-1 text-sm text-gray-500">
-            {documents.length === 0 
-              ? 'Get started by uploading your first PDF document.' 
-              : 'Try adjusting your search or filter criteria.'
-            }
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-4">
+            Welcome back, {user?.username}! ✨
+          </h1>
+          <p className="text-xl text-gray-600 dark:text-gray-400 mb-8">
+            You have {documents.length} document{documents.length !== 1 ? 's' : ''} ready for intelligent conversations
           </p>
-          {documents.length === 0 && (
-            <div className="mt-6">
-              <button
-                onClick={() => setShowUpload(true)}
-                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Upload your first PDF
-              </button>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredDocuments.map((document) => (
-            <div
-              key={document._id}
-              onClick={() => document.processingStatus === 'completed' && navigate(`/chat/${document._id}`)}
-              className={`bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 ${
-                document.processingStatus === 'completed' 
-                  ? 'cursor-pointer hover:border-blue-300' 
-                  : 'cursor-default'
-              }`}
+          
+          <AnimatedButton
+            variant="gradient"
+            size="lg"
+            onClick={() => setShowUpload(true)}
+            icon={<Plus className="h-5 w-5" />}
+            className="shadow-2xl"
+          >
+            Upload New PDF
+          </AnimatedButton>
+        </motion.div>
+
+        {/* Stats Cards */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12"
+        >
+          {[
+            {
+              icon: FileText,
+              title: "Total Documents",
+              value: documents.length,
+              color: "from-blue-500 to-cyan-500",
+              bgColor: "bg-blue-500/10"
+            },
+            {
+              icon: MessageCircle,
+              title: "Ready to Chat",
+              value: documents.filter(doc => doc.processingStatus === 'completed').length,
+              color: "from-green-500 to-emerald-500",
+              bgColor: "bg-green-500/10"
+            },
+            {
+              icon: Clock,
+              title: "Processing",
+              value: documents.filter(doc => doc.processingStatus === 'processing').length,
+              color: "from-yellow-500 to-orange-500",
+              bgColor: "bg-yellow-500/10"
+            }
+          ].map((stat, index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 + index * 0.1 }}
             >
-              <div className="flex items-start justify-between">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <FileIcon className="h-10 w-10 text-red-500" />
-                  </div>
-                  <div className="ml-3 flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {document.originalName}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      {formatFileSize(document.size)}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={(e) => handleDeleteDocument(document._id, e)}
-                  className="ml-2 p-2 text-gray-400 hover:text-red-500 transition-colors"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-
-              <div className="mt-4">
+              <GlassCard className="p-6 hover:scale-105 transition-transform duration-300" gradient>
                 <div className="flex items-center justify-between">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(document.processingStatus)}`}>
-                    {document.processingStatus === 'completed' && 'Ready to Chat'}
-                    {document.processingStatus === 'processing' && 'Processing...'}
-                    {document.processingStatus === 'uploading' && 'Uploading...'}
-                    {document.processingStatus === 'failed' && 'Failed'}
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    {formatDistanceToNow(new Date(document.createdAt), { addSuffix: true })}
-                  </span>
-                </div>
-                
-                {document.processingStatus === 'processing' && (
-                  <div className="mt-2">
-                    <div className="bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${document.processingProgress}%` }}
-                      ></div>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">{document.processingProgress}% complete</p>
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+                      {stat.title}
+                    </p>
+                    <p className="text-3xl font-bold text-gray-900 dark:text-white">
+                      {stat.value}
+                    </p>
                   </div>
-                )}
-
-                {document.metadata && (
-                  <div className="mt-2 text-xs text-gray-500">
-                    {document.metadata.pages} pages • {document.metadata.wordCount} words
+                  <div className={`p-3 rounded-xl bg-gradient-to-r ${stat.color}`}>
+                    <stat.icon className="h-6 w-6 text-white" />
                   </div>
-                )}
-              </div>
-
-              {document.processingStatus === 'completed' && (
-                <div className="mt-4">
-                  <button className="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-blue-700 bg-blue-100 hover:bg-blue-200 transition-colors">
-                    <MessageCircle className="h-4 w-4 mr-2" />
-                    Start Chat
-                  </button>
                 </div>
-              )}
-            </div>
+              </GlassCard>
+            </motion.div>
           ))}
-        </div>
-      )}
+        </motion.div>
+
+        {/* Search and Filter */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="mb-8"
+        >
+          <GlassCard className="p-6">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1 relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search documents..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="block w-full pl-10 pr-3 py-3 bg-white/10 dark:bg-white/5 border border-white/20 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                />
+              </div>
+              <select
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                className="px-4 py-3 bg-white/10 dark:bg-white/5 border border-white/20 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm text-gray-900 dark:text-white"
+              >
+                <option value="all">All Documents</option>
+                <option value="completed">Ready to Chat</option>
+                <option value="processing">Processing</option>
+                <option value="failed">Failed</option>
+              </select>
+            </div>
+          </GlassCard>
+        </motion.div>
+
+        {/* Documents Grid */}
+        <AnimatePresence>
+          {filteredDocuments.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="text-center py-16"
+            >
+              <GlassCard className="p-12 max-w-md mx-auto" gradient>
+                <motion.div
+                  animate={{ y: [0, -10, 0] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  <FileText className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+                </motion.div>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                  {documents.length === 0 ? 'No documents yet' : 'No documents match your search'}
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-6">
+                  {documents.length === 0 
+                    ? 'Get started by uploading your first PDF document.' 
+                    : 'Try adjusting your search or filter criteria.'
+                  }
+                </p>
+                {documents.length === 0 && (
+                  <AnimatedButton
+                    variant="gradient"
+                    onClick={() => setShowUpload(true)}
+                    icon={<Plus className="h-4 w-4" />}
+                  >
+                    Upload your first PDF
+                  </AnimatedButton>
+                )}
+              </GlassCard>
+            </motion.div>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            >
+              {filteredDocuments.map((document, index) => (
+                <motion.div
+                  key={document._id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6 + index * 0.1 }}
+                  whileHover={{ y: -5 }}
+                >
+                  <GlassCard
+                    className="p-6 h-full cursor-pointer group"
+                    onClick={() => document.processingStatus === 'completed' && navigate(`/chat/${document._id}`)}
+                    hover={document.processingStatus === 'completed'}
+                    gradient
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center space-x-3 flex-1 min-w-0">
+                        <div className="relative">
+                          <div className="w-12 h-12 bg-gradient-to-r from-red-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg">
+                            <FileIcon className="h-6 w-6 text-white" />
+                          </div>
+                          {document.processingStatus === 'completed' && (
+                            <motion.div
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center"
+                            >
+                              <Sparkles className="h-2 w-2 text-white" />
+                            </motion.div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                            {document.originalName}
+                          </h3>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            {formatFileSize(document.size)}
+                          </p>
+                        </div>
+                      </div>
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={(e) => handleDeleteDocument(document._id, e)}
+                        className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-red-500/10"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </motion.button>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(document.processingStatus)}`}>
+                          {document.processingStatus === 'completed' && '✨ Ready to Chat'}
+                          {document.processingStatus === 'processing' && '⚡ Processing...'}
+                          {document.processingStatus === 'uploading' && '📤 Uploading...'}
+                          {document.processingStatus === 'failed' && '❌ Failed'}
+                        </span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {formatDistanceToNow(new Date(document.createdAt), { addSuffix: true })}
+                        </span>
+                      </div>
+                      
+                      {document.processingStatus === 'processing' && (
+                        <div className="space-y-2">
+                          <div className="bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${document.processingProgress}%` }}
+                              transition={{ duration: 0.5 }}
+                              className="h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full"
+                            />
+                          </div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {document.processingProgress}% complete
+                          </p>
+                        </div>
+                      )}
+
+                      {document.metadata && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center space-x-4">
+                          <span>📄 {document.metadata.pages} pages</span>
+                          <span>📝 {document.metadata.wordCount} words</span>
+                        </div>
+                      )}
+
+                      {document.processingStatus === 'completed' && (
+                        <AnimatedButton
+                          variant="primary"
+                          size="sm"
+                          className="w-full mt-4"
+                          icon={<MessageCircle className="h-4 w-4" />}
+                        >
+                          Start Conversation
+                        </AnimatedButton>
+                      )}
+                    </div>
+                  </GlassCard>
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 };

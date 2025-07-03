@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Send, ArrowLeft, FileText, Bot, User, Loader2, AlertCircle } from 'lucide-react';
+import { Send, ArrowLeft, FileText, Bot, User, Loader2, AlertCircle, Copy, Sparkles, Brain } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
+import GlassCard from '../components/ui/GlassCard';
+import AnimatedButton from '../components/ui/AnimatedButton';
+import FloatingElements from '../components/ui/FloatingElements';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -69,7 +73,6 @@ const Chat: React.FC = () => {
 
   const initializeChat = async () => {
     try {
-      // First, get document details
       const docResponse = await api.get(`/pdf/documents/${documentId}`);
       setDocument(docResponse.data);
 
@@ -78,7 +81,6 @@ const Chat: React.FC = () => {
         return;
       }
 
-      // Start or get existing chat
       const chatResponse = await api.post('/chat/start', { documentId });
       const chatData = chatResponse.data;
       
@@ -121,12 +123,15 @@ const Chat: React.FC = () => {
     } catch (error: any) {
       console.error('Failed to send message:', error);
       toast.error(error.response?.data?.error || 'Failed to send message');
-      
-      // Remove the user message if sending failed
       setMessages(prev => prev.slice(0, -1));
     } finally {
       setSending(false);
     }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success('Copied to clipboard!');
   };
 
   const formatTime = (time: number) => {
@@ -134,218 +139,293 @@ const Chat: React.FC = () => {
   };
 
   if (loading) {
-    return <LoadingSpinner />;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner />
+      </div>
+    );
   }
 
   if (!document || !chat) {
     return (
-      <div className="max-w-4xl mx-auto text-center py-12">
-        <AlertCircle className="mx-auto h-12 w-12 text-red-500" />
-        <h3 className="mt-2 text-lg font-medium text-gray-900">Chat not available</h3>
-        <p className="mt-1 text-sm text-gray-500">
-          The document might still be processing or there was an error.
-        </p>
-        <button
-          onClick={() => navigate('/dashboard')}
-          className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700"
-        >
-          Back to Dashboard
-        </button>
+      <div className="min-h-screen flex items-center justify-center">
+        <GlassCard className="p-8 text-center max-w-md">
+          <AlertCircle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+            Chat not available
+          </h3>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            The document might still be processing or there was an error.
+          </p>
+          <AnimatedButton onClick={() => navigate('/dashboard')}>
+            Back to Dashboard
+          </AnimatedButton>
+        </GlassCard>
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto h-[calc(100vh-200px)] flex flex-col">
-      {/* Header */}
-      <div className="bg-white rounded-t-xl shadow-sm border border-gray-200 p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </button>
-            <div className="flex items-center space-x-3">
-              <FileText className="h-8 w-8 text-red-500" />
-              <div>
-                <h1 className="text-lg font-semibold text-gray-900">
-                  {document.originalName}
-                </h1>
-                <p className="text-sm text-gray-500">
-                  {document.metadata?.pages} pages • {document.metadata?.wordCount} words
-                </p>
+    <div className="min-h-screen relative">
+      <FloatingElements />
+      <div className="relative z-10 max-w-6xl mx-auto h-[calc(100vh-120px)] flex flex-col">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <GlassCard className="p-6 mb-6" gradient>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => navigate('/dashboard')}
+                  className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors rounded-lg hover:bg-white/10"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </motion.button>
+                <div className="flex items-center space-x-3">
+                  <div className="relative">
+                    <div className="w-12 h-12 bg-gradient-to-r from-red-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg">
+                      <FileText className="h-6 w-6 text-white" />
+                    </div>
+                    <motion.div
+                      animate={{ scale: [1, 1.2, 1] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                      className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center"
+                    >
+                      <Sparkles className="h-2 w-2 text-white" />
+                    </motion.div>
+                  </div>
+                  <div>
+                    <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+                      {document.originalName}
+                    </h1>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      📄 {document.metadata?.pages} pages • 📝 {document.metadata?.wordCount} words
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  {messages.length} message{messages.length !== 1 ? 's' : ''}
+                </span>
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
               </div>
             </div>
-          </div>
-          <div className="text-sm text-gray-500">
-            {messages.length} message{messages.length !== 1 ? 's' : ''}
-          </div>
-        </div>
-      </div>
+          </GlassCard>
+        </motion.div>
 
-      {/* Messages */}
-      <div className="flex-1 bg-gray-50 overflow-y-auto p-4 space-y-4">
-        {messages.length === 0 ? (
-          <div className="text-center py-12">
-            <Bot className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-lg font-medium text-gray-900">
-              Start a conversation
-            </h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Ask me anything about "{document.originalName}"
-            </p>
-          </div>
-        ) : (
-          messages.map((message, index) => (
-            <div
-              key={index}
-              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-3xl flex ${
-                  message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
-                } space-x-3`}
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto space-y-6 px-2">
+          <AnimatePresence>
+            {messages.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="text-center py-16"
               >
-                <div
-                  className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                    message.role === 'user'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-600 text-white'
-                  }`}
+                <GlassCard className="p-12 max-w-md mx-auto" gradient>
+                  <motion.div
+                    animate={{ 
+                      rotate: [0, 10, -10, 0],
+                      scale: [1, 1.1, 1]
+                    }}
+                    transition={{ duration: 3, repeat: Infinity }}
+                  >
+                    <Brain className="mx-auto h-16 w-16 text-blue-500 mb-4" />
+                  </motion.div>
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                    Start a conversation
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    Ask me anything about "{document.originalName}"
+                  </p>
+                </GlassCard>
+              </motion.div>
+            ) : (
+              messages.map((message, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  {message.role === 'user' ? (
-                    <User className="h-4 w-4" />
-                  ) : (
-                    <Bot className="h-4 w-4" />
-                  )}
-                </div>
-                <div
-                  className={`rounded-lg px-4 py-3 ${
-                    message.role === 'user'
-                      ? 'bg-blue-600 text-white ml-3'
-                      : 'bg-white text-gray-900 shadow-sm border border-gray-200 mr-3'
-                  }`}
-                >
-                  {message.role === 'user' ? (
-                    <p className="text-sm">{message.content}</p>
-                  ) : (
-                    <div className="prose prose-sm max-w-none">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                          code({node, inline, className, children, ...props}) {
-                            const match = /language-(\w+)/.exec(className || '');
-                            return !inline && match ? (
-                              <SyntaxHighlighter
-                                style={tomorrow}
-                                language={match[1]}
-                                PreTag="div"
-                                {...props}
-                              >
-                                {String(children).replace(/\n$/, '')}
-                              </SyntaxHighlighter>
-                            ) : (
-                              <code className={className} {...props}>
-                                {children}
-                              </code>
-                            );
-                          },
-                        }}
-                      >
-                        {message.content}
-                      </ReactMarkdown>
-                    </div>
-                  )}
-                  
-                  {message.metadata && (
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <div className="flex flex-wrap gap-2 text-xs text-gray-500">
-                        {message.metadata.processingTime && (
-                          <span>⏱️ {formatTime(message.metadata.processingTime)}</span>
-                        )}
-                        {message.metadata.relevantChunks && (
-                          <span>📄 {message.metadata.relevantChunks.length} sources</span>
-                        )}
-                      </div>
-                      
-                      {message.metadata.relevantChunks && message.metadata.relevantChunks.length > 0 && (
-                        <div className="mt-2">
-                          <details className="cursor-pointer">
-                            <summary className="text-xs text-gray-600 hover:text-gray-800">
-                              View sources
-                            </summary>
-                            <div className="mt-2 space-y-2">
-                              {message.metadata.relevantChunks.slice(0, 3).map((chunk, i) => (
-                                <div key={i} className="text-xs bg-gray-50 p-2 rounded border">
-                                  <div className="font-medium text-gray-700">
-                                    Page {chunk.pageNumber} (Relevance: {(chunk.score * 100).toFixed(1)}%)
-                                  </div>
-                                  <div className="text-gray-600 mt-1 line-clamp-3">
-                                    {chunk.text}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </details>
+                  <div className={`max-w-4xl flex ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'} space-x-4`}>
+                    <motion.div
+                      whileHover={{ scale: 1.1 }}
+                      className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center shadow-lg ${
+                        message.role === 'user'
+                          ? 'bg-gradient-to-r from-blue-500 to-purple-600'
+                          : 'bg-gradient-to-r from-green-500 to-emerald-600'
+                      }`}
+                    >
+                      {message.role === 'user' ? (
+                        <User className="h-5 w-5 text-white" />
+                      ) : (
+                        <Bot className="h-5 w-5 text-white" />
+                      )}
+                    </motion.div>
+                    
+                    <GlassCard
+                      className={`p-4 ${message.role === 'user' ? 'ml-4' : 'mr-4'} group`}
+                      gradient
+                    >
+                      {message.role === 'user' ? (
+                        <p className="text-gray-900 dark:text-white">{message.content}</p>
+                      ) : (
+                        <div className="prose prose-sm max-w-none dark:prose-invert">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              code({node, inline, className, children, ...props}) {
+                                const match = /language-(\w+)/.exec(className || '');
+                                return !inline && match ? (
+                                  <SyntaxHighlighter
+                                    style={tomorrow}
+                                    language={match[1]}
+                                    PreTag="div"
+                                    {...props}
+                                  >
+                                    {String(children).replace(/\n$/, '')}
+                                  </SyntaxHighlighter>
+                                ) : (
+                                  <code className={className} {...props}>
+                                    {children}
+                                  </code>
+                                );
+                              },
+                            }}
+                          >
+                            {message.content}
+                          </ReactMarkdown>
                         </div>
                       )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))
-        )}
-        
-        {sending && (
-          <div className="flex justify-start">
-            <div className="max-w-3xl flex space-x-3">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-600 text-white flex items-center justify-center">
-                <Bot className="h-4 w-4" />
-              </div>
-              <div className="bg-white rounded-lg px-4 py-3 shadow-sm border border-gray-200">
-                <div className="flex items-center space-x-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-                  <span className="text-sm text-gray-500">Thinking...</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-        
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input */}
-      <div className="bg-white rounded-b-xl shadow-sm border-t border-gray-200 p-4">
-        <form onSubmit={sendMessage} className="flex space-x-4">
-          <div className="flex-1">
-            <input
-              type="text"
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="Ask a question about this document..."
-              disabled={sending}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={!newMessage.trim() || sending}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {sending ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <Send className="h-5 w-5" />
+                      
+                      {message.role === 'assistant' && (
+                        <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/10">
+                          <div className="flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400">
+                            {message.metadata?.processingTime && (
+                              <span className="flex items-center space-x-1">
+                                <Sparkles className="h-3 w-3" />
+                                <span>{formatTime(message.metadata.processingTime)}</span>
+                              </span>
+                            )}
+                            {message.metadata?.relevantChunks && (
+                              <span className="flex items-center space-x-1">
+                                <FileText className="h-3 w-3" />
+                                <span>{message.metadata.relevantChunks.length} sources</span>
+                              </span>
+                            )}
+                          </div>
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => copyToClipboard(message.content)}
+                            className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-all duration-300 rounded"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </motion.button>
+                        </div>
+                      )}
+                      
+                      {message.metadata?.relevantChunks && message.metadata.relevantChunks.length > 0 && (
+                        <details className="mt-3 cursor-pointer">
+                          <summary className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors">
+                            🔍 View sources ({message.metadata.relevantChunks.length})
+                          </summary>
+                          <div className="mt-2 space-y-2">
+                            {message.metadata.relevantChunks.slice(0, 3).map((chunk, i) => (
+                              <motion.div
+                                key={i}
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: i * 0.1 }}
+                                className="text-xs bg-white/5 p-3 rounded-lg border border-white/10"
+                              >
+                                <div className="font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                  📄 Page {chunk.pageNumber} • Relevance: {(chunk.score * 100).toFixed(1)}%
+                                </div>
+                                <div className="text-gray-600 dark:text-gray-400 line-clamp-3">
+                                  {chunk.text}
+                                </div>
+                              </motion.div>
+                            ))}
+                          </div>
+                        </details>
+                      )}
+                    </GlassCard>
+                  </div>
+                </motion.div>
+              ))
             )}
-          </button>
-        </form>
-        <p className="text-xs text-gray-500 mt-2">
-          Press Enter to send your message. The AI will search through your document to provide relevant answers.
-        </p>
+          </AnimatePresence>
+          
+          {sending && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex justify-start"
+            >
+              <div className="max-w-4xl flex space-x-4">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center shadow-lg">
+                  <Bot className="h-5 w-5 text-white" />
+                </div>
+                <GlassCard className="p-4" gradient>
+                  <div className="flex items-center space-x-3">
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    >
+                      <Loader2 className="h-5 w-5 text-blue-500" />
+                    </motion.div>
+                    <span className="text-gray-600 dark:text-gray-400">AI is thinking...</span>
+                  </div>
+                </GlassCard>
+              </div>
+            </motion.div>
+          )}
+          
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="mt-6"
+        >
+          <GlassCard className="p-4" gradient>
+            <form onSubmit={sendMessage} className="flex space-x-4">
+              <div className="flex-1">
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Ask a question about this document..."
+                  disabled={sending}
+                  className="w-full px-4 py-3 bg-white/10 dark:bg-white/5 border border-white/20 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50"
+                />
+              </div>
+              <AnimatedButton
+                type="submit"
+                disabled={!newMessage.trim() || sending}
+                variant="gradient"
+                icon={sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+              >
+                {sending ? 'Sending' : 'Send'}
+              </AnimatedButton>
+            </form>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
+              ✨ Powered by AI • Press Enter to send your message
+            </p>
+          </GlassCard>
+        </motion.div>
       </div>
     </div>
   );
