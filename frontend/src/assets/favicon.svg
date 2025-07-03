@@ -1,0 +1,74 @@
+<svg width="500" height="120" viewBox="0 0 500 120" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .title { 
+      font: bold 32px 'Segoe UI', sans-serif;
+      fill: #333;
+      opacity: 0;
+      animation: fadeIn 2s forwards;
+    }
+
+    .subtitle {
+      font: 16px 'Segoe UI', sans-serif;
+      fill: #555;
+      opacity: 0;
+      animation: fadeIn 2s 1s forwards;
+    }
+
+    .doc {
+      fill: #6C63FF;
+      stroke: #4e4edb;
+      stroke-width: 2;
+      opacity: 0;
+      animation: fadeInMove 1s forwards;
+    }
+
+    .chat {
+      fill: #FF6584;
+      stroke: #e94c6b;
+      stroke-width: 2;
+      opacity: 0;
+      animation: fadeInMove 1.2s 0.5s forwards;
+    }
+
+    .circle {
+      fill: #00C9A7;
+      opacity: 0;
+      animation: pulse 2s infinite alternate, fadeIn 1s 1s forwards;
+    }
+
+    @keyframes fadeIn {
+      to { opacity: 1; }
+    }
+
+    @keyframes fadeInMove {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes pulse {
+      0% { r: 4; opacity: 0.6; }
+      100% { r: 7; opacity: 1; }
+    }
+  </style>
+
+  <!-- Document Icon -->
+  <rect x="20" y="20" width="40" height="50" rx="5" class="doc"/>
+  <line x1="25" y1="30" x2="55" y2="30" stroke="#fff" stroke-width="2"/>
+  <line x1="25" y1="40" x2="55" y2="40" stroke="#fff" stroke-width="2"/>
+  <line x1="25" y1="50" x2="45" y2="50" stroke="#fff" stroke-width="2"/>
+
+  <!-- Chat Bubble Icon -->
+  <path d="M90,25 h50 a5,5 0 0 1 5,5 v25 a5,5 0 0 1 -5,5 h-40 l-10,10 v-10 h-5 a5,5 0 0 1 -5,-5 v-25 a5,5 0 0 1 5,-5 z"
+        class="chat"/>
+  <circle cx="105" cy="40" r="4" fill="#fff"/>
+  <circle cx="120" cy="40" r="4" fill="#fff"/>
+  <circle cx="135" cy="40" r="4" fill="#fff"/>
+
+  <!-- AI pulse dot -->
+  <circle cx="165" cy="30" r="4" class="circle"/>
+
+  <!-- App Title -->
+  <text x="180" y="45" class="title">AskMyPDF</text>
+  <text x="180" y="75" class="subtitle">AI powered chat application</text>
+
+</svg>
