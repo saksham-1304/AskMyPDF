@@ -1,8 +1,6 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import ai from './gemini.js';
 import { searchSimilarChunks, searchWithFilter, generateEmbeddings, advancedSearch } from './qdrantService.js';
 import Document from '../models/Document.js';
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 /**
  * Enhanced RAG Pipeline Service with Qdrant Integration
@@ -10,14 +8,13 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
  */
 class RAGService {
   constructor() {
-    this.model = genAI.getGenerativeModel({ model: 'gemini-pro' });
-    this.embeddingModel = genAI.getGenerativeModel({ model: 'embedding-001' });
+    this.ai = ai;
     
     // RAG Configuration
     this.config = {
       maxContextLength: 4000,
       maxRetrievedChunks: 8,
-      minRelevanceScore: 0.7,
+      minRelevanceScore: 0.1, // Lowered from 0.3 to 0.1 for better recall
       chunkOverlap: 200,
       chunkSize: 1000,
       reranking: true,
@@ -107,8 +104,11 @@ Provide an expanded query that includes:
 
 Expanded query:`;
 
-      const result = await this.model.generateContent(expansionPrompt);
-      const expandedQuery = await result.response.text();
+      const result = await this.ai.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: expansionPrompt,
+      });
+      const expandedQuery = result.text;
 
       return {
         original: query,
@@ -130,31 +130,50 @@ Expanded query:`;
    */
   async retrieveRelevantChunks(processedQuery, document, maxChunks) {
     try {
+      console.log(`Retrieving chunks for document: ${document._id}, query: ${processedQuery.original}`);
+      console.log(`Document has ${document.chunks?.length || 0} chunks and ${document.content?.length || 0} content length`);
+      
       // Primary semantic search using Qdrant with document filter
-      const semanticChunks = await searchWithFilter(
-        processedQuery.expanded,
-        this.config.collectionName,
-        document._id,
-        maxChunks
-      );
+      let semanticChunks = [];
+      try {
+        semanticChunks = await searchWithFilter(
+          processedQuery.expanded,
+          this.config.collectionName,
+          document._id,
+          maxChunks
+        );
+        console.log(`Semantic search returned ${semanticChunks.length} chunks`);
+      } catch (error) {
+        console.error('Semantic search error:', error);
+      }
 
       // Advanced search with multiple strategies if available
-      const advancedChunks = await advancedSearch(
-        processedQuery.original,
-        this.config.collectionName,
-        {
-          documentId: document._id,
-          topK: maxChunks,
-          scoreThreshold: this.config.minRelevanceScore
-        }
-      );
+      let advancedChunks = [];
+      try {
+        advancedChunks = await advancedSearch(
+          processedQuery.original,
+          this.config.collectionName,
+          {
+            documentId: document._id,
+            topK: maxChunks,
+            scoreThreshold: 0.05 // Even lower threshold for advanced search
+          }
+        );
+        console.log(`Advanced search returned ${advancedChunks.length} chunks`);
+      } catch (error) {
+        console.error('Advanced search error:', error);
+      }
 
-      // Keyword-based search for hybrid approach
-      const keywordChunks = this.keywordSearch(
-        processedQuery.original,
-        document.chunks,
-        maxChunks
-      );
+      // Keyword-based search for hybrid approach (fallback to document chunks)
+      let keywordChunks = [];
+      if (document.chunks && document.chunks.length > 0) {
+        keywordChunks = this.keywordSearch(
+          processedQuery.original,
+          document.chunks,
+          maxChunks
+        );
+        console.log(`Keyword search returned ${keywordChunks.length} chunks`);
+      }
 
       // Combine and deduplicate results
       const combinedChunks = this.combineSearchResults(
@@ -164,19 +183,72 @@ Expanded query:`;
         maxChunks
       );
 
-      // Filter by relevance threshold
-      return combinedChunks.filter(chunk => 
+      console.log(`Combined search returned ${combinedChunks.length} chunks`);
+
+      // Filter by relevance threshold, but be more lenient
+      let filteredChunks = combinedChunks.filter(chunk => 
         chunk.score >= this.config.minRelevanceScore
       );
+
+      // Fallback: if no chunks meet threshold, use top chunks regardless of score
+      if (filteredChunks.length === 0 && combinedChunks.length > 0) {
+        console.log('No chunks met relevance threshold, using top chunks as fallback');
+        filteredChunks = combinedChunks.slice(0, Math.min(maxChunks, 5));
+      }
+
+      // Additional fallback: if still no chunks, use any available chunks with lower threshold
+      if (filteredChunks.length === 0) {
+        filteredChunks = combinedChunks.filter(chunk => chunk.score >= 0.05);
+        if (filteredChunks.length === 0) {
+          filteredChunks = combinedChunks.slice(0, Math.min(maxChunks, 3));
+        }
+      }
+
+      // Final fallback: use document chunks directly if available
+      if (filteredChunks.length === 0 && document.chunks && document.chunks.length > 0) {
+        console.log('Using document chunks as final fallback');
+        filteredChunks = document.chunks.slice(0, Math.min(maxChunks, 5)).map((chunk, index) => ({
+          text: chunk.text,
+          score: 0.5, // Default score
+          pageNumber: chunk.metadata?.pageNumber || Math.floor(index / 5) + 1,
+          chunkIndex: index,
+          strategy: chunk.metadata?.strategy || 'fallback',
+          source: 'document'
+        }));
+      }
+
+      console.log(`Final result: ${filteredChunks.length} chunks for retrieval`);
+      return filteredChunks;
     } catch (error) {
       console.error('Retrieval error:', error);
-      // Fallback to basic search
-      return await searchWithFilter(
-        processedQuery.original,
-        this.config.collectionName,
-        document._id,
-        maxChunks
-      );
+      // Ultimate fallback: use document chunks if available
+      if (document.chunks && document.chunks.length > 0) {
+        console.log('Using document chunks as error fallback');
+        return document.chunks.slice(0, Math.min(maxChunks, 5)).map((chunk, index) => ({
+          text: chunk.text,
+          score: 0.5,
+          pageNumber: chunk.metadata?.pageNumber || Math.floor(index / 5) + 1,
+          chunkIndex: index,
+          strategy: chunk.metadata?.strategy || 'fallback',
+          source: 'document'
+        }));
+      }
+      
+      // If no chunks available, at least try to use some document content
+      if (document.content) {
+        console.log('Using document content as final fallback');
+        const contentChunks = document.content.match(/.{1,1000}/g) || [];
+        return contentChunks.slice(0, Math.min(maxChunks, 3)).map((chunk, index) => ({
+          text: chunk,
+          score: 0.3,
+          pageNumber: Math.floor(index / 5) + 1,
+          chunkIndex: index,
+          strategy: 'content-fallback',
+          source: 'document-content'
+        }));
+      }
+      
+      return [];
     }
   }
 
@@ -275,7 +347,17 @@ Expanded query:`;
    * Step 3: Context preparation and ranking
    */
   async prepareContext(retrievedChunks, processedQuery) {
-    if (!retrievedChunks.length) return '';
+    console.log(`Preparing context with ${retrievedChunks.length} chunks`);
+    
+    if (!retrievedChunks.length) {
+      console.log('No chunks retrieved, returning empty context');
+      return '';
+    }
+
+    // Log chunk details for debugging
+    retrievedChunks.forEach((chunk, index) => {
+      console.log(`Chunk ${index}: score=${chunk.score}, source=${chunk.source}, strategy=${chunk.strategy}`);
+    });
 
     // Re-rank chunks based on query relevance
     const rerankedChunks = this.config.reranking 
@@ -299,6 +381,7 @@ Expanded query:`;
       tokenCount += estimatedTokens;
     }
 
+    console.log(`Context prepared with ${tokenCount} estimated tokens from ${rerankedChunks.length} chunks`);
     return context.trim();
   }
 
@@ -321,8 +404,11 @@ Text chunk: ${chunk.text.slice(0, 500)}
 Relevance score (0-1):`;
 
         try {
-          const result = await this.model.generateContent(relevancePrompt);
-          const scoreText = await result.response.text();
+          const result = await this.ai.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: relevancePrompt,
+          });
+          const scoreText = result.text;
           const relevanceScore = parseFloat(scoreText.match(/[\d.]+/)?.[0] || chunk.score);
           
           rerankedChunks.push({
@@ -359,8 +445,11 @@ Relevance score (0-1):`;
 
       const prompt = this.buildGenerationPrompt(query, context, recentHistory, document);
       
-      const result = await this.model.generateContent(prompt);
-      const answer = await result.response.text();
+      const result = await this.ai.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: prompt,
+      });
+      const answer = result.text;
 
       return {
         answer: answer.trim(),
@@ -376,11 +465,64 @@ Relevance score (0-1):`;
    * Build sophisticated generation prompt
    */
   buildGenerationPrompt(query, context, chatHistory, document) {
+    const hasContext = context && context.trim().length > 0;
+    
+    if (!hasContext) {
+      // If no context from vector search, try to use document content directly
+      let documentContent = '';
+      if (document.content) {
+        documentContent = document.content.slice(0, 3000); // Use first 3000 chars as fallback
+      } else if (document.chunks && document.chunks.length > 0) {
+        documentContent = document.chunks.slice(0, 3).map(chunk => chunk.text).join('\n\n');
+      }
+      
+      if (documentContent) {
+        return `You are an AI assistant specialized in analyzing and answering questions about documents. 
+
+The vector search didn't find specific relevant sections, but here's content from the document "${document.originalName}":
+
+DOCUMENT CONTENT:
+${documentContent}
+
+INSTRUCTIONS:
+1. Answer the user's question based on the document content provided above
+2. If the answer isn't in the content, clearly state that the specific information is not available in the provided content
+3. Be helpful and provide any related information that might be useful
+4. Suggest specific ways the user could rephrase their question
+
+USER QUESTION: ${query}
+
+CONVERSATION HISTORY:
+${chatHistory}
+
+ANSWER:`;
+      } else {
+        return `You are an AI assistant specialized in analyzing and answering questions about documents. 
+
+IMPORTANT: The document "${document.originalName}" has been uploaded, but I'm unable to access its content properly. This could be due to:
+1. Technical issues with the document processing system
+2. The document not being fully processed yet
+3. Issues with the vector search system
+
+Please try:
+1. Rephrasing your question with different keywords
+2. Asking about a different aspect of the document
+3. Checking if the document finished processing
+
+USER QUESTION: ${query}
+
+CONVERSATION HISTORY:
+${chatHistory}
+
+ANSWER:`;
+      }
+    }
+
     return `You are an AI assistant specialized in analyzing and answering questions about documents. You have access to relevant excerpts from "${document.originalName}" retrieved using Qdrant vector database.
 
 INSTRUCTIONS:
 1. Answer the user's question based ONLY on the provided context
-2. If the answer isn't in the context, clearly state that the information is not available
+2. If the answer isn't in the context, clearly state that the information is not available in the provided excerpts
 3. Cite specific page numbers when referencing information
 4. Provide comprehensive but concise answers
 5. Maintain conversation continuity with the chat history
@@ -422,8 +564,11 @@ AI Response: ${response}
 
 Generate 3 follow-up questions:`;
 
-      const result = await this.model.generateContent(prompt);
-      const questions = await result.response.text();
+      const result = await this.ai.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: prompt,
+      });
+      const questions = result.text;
       
       return questions.split('\n')
         .filter(q => q.trim().length > 0)
@@ -454,8 +599,11 @@ Rate the answer on these criteria (0-10 scale):
 
 Provide scores and brief explanations:`;
 
-      const result = await this.model.generateContent(evaluationPrompt);
-      const evaluation = await result.response.text();
+      const result = await this.ai.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: evaluationPrompt,
+      });
+      const evaluation = result.text;
 
       return {
         evaluation,

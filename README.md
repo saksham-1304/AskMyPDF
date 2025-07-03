@@ -1,6 +1,6 @@
-# PDF Chat Application with Qdrant Vector Database
+# AskMyPDF - PDF Chat Application with Qdrant Vector Database
 
-A full-stack MERN application that allows users to upload PDF documents and have AI-powered conversations with them using Google Gemini AI and **Qdrant vector database** for enhanced semantic search.
+AskMyPDF is a full-stack MERN application that allows users to upload PDF documents and have AI-powered conversations with them using Google Gemini AI and **Qdrant vector database** for enhanced semantic search.
 
 ## Features
 
@@ -46,7 +46,7 @@ A full-stack MERN application that allows users to upload PDF documents and have
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd pdf-chat-app
+   cd askmypdf
    ```
 
 2. **Install all dependencies**
@@ -242,7 +242,7 @@ GET /api/pdf/documents/:id/analytics
 ## Project Structure
 
 ```
-pdf-chat-app/
+askmypdf/
 ├── package.json            # Root package.json with main scripts
 ├── backend/
 │   ├── services/

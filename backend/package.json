@@ -1,7 +1,7 @@
 {
-  "name": "pdf-chat-backend",
+  "name": "askmypdf-backend",
   "version": "1.0.0",
-  "description": "Backend for PDF Chat Application with Enhanced RAG Pipeline using Qdrant",
+  "description": "Backend for AskMyPDF - Enhanced RAG Pipeline using Qdrant",
   "main": "server.js",
   "type": "module",
   "scripts": {
@@ -11,8 +11,9 @@
     "build:full": "cd ../frontend && npm run build && cd ../backend"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.2.1",
+    "@google/genai": "^1.8.0",
     "@qdrant/js-client-rest": "^1.8.2",
+    "askmypdf": "file:..",
     "bcryptjs": "^2.4.3",
     "compression": "^1.7.4",
     "compromise": "^14.10.0",
@@ -29,7 +30,6 @@
     "multer": "^1.4.5-lts.1",
     "natural": "^6.12.0",
     "path": "^0.12.7",
-    "pdf-chat-app": "file:..",
     "pdf-parse-new": "^1.4.1",
     "uuid": "^9.0.1"
   },

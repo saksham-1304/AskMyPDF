@@ -1,5 +1,5 @@
 {
-  "name": "pdf-chat-frontend",
+  "name": "askmypdf-frontend",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,11 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "askmypdf": "file:..",
     "axios": "^1.6.0",
     "date-fns": "^2.30.0",
     "framer-motion": "^10.16.4",
     "lucide-react": "^0.344.0",
-    "pdf-chat-app": "file:..",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-dropzone": "^14.2.3",

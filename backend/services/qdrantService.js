@@ -1,9 +1,23 @@
 import { QdrantClient } from '@qdrant/js-client-rest';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
+import { v4 as uuidv4, v5 as uuidv5 } from 'uuid';
 
 // Lazy initialization variables
 let qdrantClient = null;
 let genAI = null;
+
+// Document namespace UUID for consistent point ID generation
+const DOCUMENT_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
+
+// Helper function to generate consistent point IDs
+const generatePointId = (documentId, chunkIndex) => {
+  const pointId = uuidv5(`${documentId}-${chunkIndex}`, DOCUMENT_NAMESPACE);
+  // Validate UUID format
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(pointId)) {
+    throw new Error(`Generated invalid UUID: ${pointId}`);
+  }
+  return pointId;
+};
 
 // Function to initialize Qdrant client
 const initializeQdrant = () => {
@@ -33,7 +47,7 @@ const initializeGenAI = () => {
     if (!process.env.GEMINI_API_KEY) {
       throw new Error('Google Generative AI configuration missing: GEMINI_API_KEY is required');
     }
-    genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   }
   return genAI;
 };
@@ -62,6 +76,40 @@ const initializeCollection = async (collectionName) => {
         replication_factor: 1,
       });
       console.log(`Created Qdrant collection: ${collectionName}`);
+      
+      // Create index for documentId field after collection is created
+      await client.createPayloadIndex(collectionName, {
+        field_name: 'documentId',
+        field_schema: 'keyword'
+      });
+      console.log(`Created index for documentId field in collection: ${collectionName}`);
+      
+      // Create additional useful indexes
+      await client.createPayloadIndex(collectionName, {
+        field_name: 'pageNumber',
+        field_schema: 'integer'
+      });
+      console.log(`Created index for pageNumber field in collection: ${collectionName}`);
+      
+      await client.createPayloadIndex(collectionName, {
+        field_name: 'strategy',
+        field_schema: 'keyword'
+      });
+      console.log(`Created index for strategy field in collection: ${collectionName}`);
+    } else {
+      // If collection exists, ensure required indexes are present
+      try {
+        await client.createPayloadIndex(collectionName, {
+          field_name: 'documentId',
+          field_schema: 'keyword'
+        });
+        console.log(`Ensured documentId index exists in collection: ${collectionName}`);
+      } catch (error) {
+        // Index might already exist, which is fine
+        if (!error.message.includes('already exists')) {
+          console.warn(`Warning creating documentId index: ${error.message}`);
+        }
+      }
     }
   } catch (error) {
     console.error('Error initializing Qdrant collection:', error);
@@ -71,8 +119,7 @@ const initializeCollection = async (collectionName) => {
 
 export const generateEmbeddings = async (texts) => {
   try {
-    const genAI = initializeGenAI();
-    const model = genAI.getGenerativeModel({ model: 'embedding-001' });
+    const ai = initializeGenAI();
     const embeddings = [];
     
     // Process in batches to avoid API limits
@@ -80,8 +127,11 @@ export const generateEmbeddings = async (texts) => {
     for (let i = 0; i < texts.length; i += batchSize) {
       const batch = texts.slice(i, i + batchSize);
       const batchPromises = batch.map(async (text) => {
-        const result = await model.embedContent(text);
-        return result.embedding.values;
+        const result = await ai.models.embedContent({
+          model: 'text-embedding-004',
+          contents: text,
+        });
+        return result.embeddings[0].values;
       });
       
       const batchEmbeddings = await Promise.all(batchPromises);
@@ -107,7 +157,7 @@ export const storeQdrantVectors = async (chunks, collectionName, documentId) => 
     
     // Prepare points for Qdrant
     const points = chunks.map((chunk, index) => ({
-      id: `${documentId}-${index}`,
+      id: generatePointId(documentId, index),
       vector: chunk.embedding,
       payload: {
         text: chunk.text,
@@ -143,12 +193,17 @@ export const storeQdrantVectors = async (chunks, collectionName, documentId) => 
 export const searchSimilarChunks = async (query, collectionName, topK = 5, filter = null) => {
   try {
     const client = initializeQdrant();
-    const genAI = initializeGenAI();
+    const ai = initializeGenAI();
+    
+    // Ensure collection exists
+    await initializeCollection(collectionName);
     
     // Generate embedding for query
-    const model = genAI.getGenerativeModel({ model: 'embedding-001' });
-    const result = await model.embedContent(query);
-    const queryEmbedding = result.embedding.values;
+    const result = await ai.models.embedContent({
+      model: 'text-embedding-004',
+      contents: query,
+    });
+    const queryEmbedding = result.embeddings[0].values;
 
     // Prepare search request
     const searchRequest = {
@@ -156,6 +211,7 @@ export const searchSimilarChunks = async (query, collectionName, topK = 5, filte
       limit: topK,
       with_payload: true,
       with_vector: false,
+      score_threshold: 0.05, // Very low threshold to ensure we get results
     };
 
     // Add filter if provided
@@ -166,7 +222,7 @@ export const searchSimilarChunks = async (query, collectionName, topK = 5, filte
     // Search in Qdrant
     const searchResult = await client.search(collectionName, searchRequest);
 
-    return searchResult.map(match => ({
+    const results = searchResult.map(match => ({
       text: match.payload.text,
       score: match.score,
       pageNumber: match.payload.pageNumber,
@@ -176,25 +232,63 @@ export const searchSimilarChunks = async (query, collectionName, topK = 5, filte
       wordCount: match.payload.wordCount,
       id: match.id,
     }));
+
+    console.log(`Qdrant search completed: ${results.length} results found with scores: ${results.map(r => r.score.toFixed(3)).join(', ')}`);
+    return results;
   } catch (error) {
     console.error('Error searching similar chunks in Qdrant:', error);
-    throw error;
+    
+    // Check if it's a collection not found error
+    if (error.message.includes('Collection') && error.message.includes('not found')) {
+      console.log('Collection not found, this might be expected for new documents');
+    }
+    
+    // Return empty array instead of throwing to allow fallback mechanisms
+    return [];
   }
 };
 
 export const searchWithFilter = async (query, collectionName, documentId, topK = 5) => {
-  const filter = {
-    must: [
-      {
-        key: 'documentId',
-        match: {
-          value: documentId.toString()
+  try {
+    console.log(`Searching with filter: documentId=${documentId}, topK=${topK}`);
+    
+    const filter = {
+      must: [
+        {
+          key: 'documentId',
+          match: {
+            value: documentId.toString()
+          }
         }
-      }
-    ]
-  };
+      ]
+    };
 
-  return await searchSimilarChunks(query, collectionName, topK, filter);
+    const results = await searchSimilarChunks(query, collectionName, topK, filter);
+    console.log(`Qdrant search with filter returned ${results.length} results for document ${documentId}`);
+    
+    // If no results, try without filter as fallback
+    if (results.length === 0) {
+      console.log('No results with filter, trying without filter');
+      const fallbackResults = await searchSimilarChunks(query, collectionName, topK);
+      console.log(`Fallback search returned ${fallbackResults.length} results`);
+      return fallbackResults;
+    }
+    
+    return results;
+  } catch (error) {
+    console.error('Error in searchWithFilter:', error);
+    
+    // Try fallback search without filter
+    try {
+      console.log('Attempting fallback search without filter');
+      const fallbackResults = await searchSimilarChunks(query, collectionName, topK);
+      console.log(`Fallback search returned ${fallbackResults.length} results`);
+      return fallbackResults;
+    } catch (fallbackError) {
+      console.error('Fallback search also failed:', fallbackError);
+      return [];
+    }
+  }
 };
 
 export const deleteQdrantVectors = async (collectionName, documentId = null) => {
@@ -202,7 +296,7 @@ export const deleteQdrantVectors = async (collectionName, documentId = null) => 
     const client = initializeQdrant();
     
     if (documentId) {
-      // Delete specific document vectors
+      // Delete specific document vectors using filter
       await client.delete(collectionName, {
         wait: true,
         filter: {
@@ -273,7 +367,10 @@ export const countVectors = async (collectionName, documentId = null) => {
 export const advancedSearch = async (query, collectionName, options = {}) => {
   try {
     const client = initializeQdrant();
-    const genAI = initializeGenAI();
+    const ai = initializeGenAI();
+    
+    // Ensure collection exists
+    await initializeCollection(collectionName);
     
     const {
       documentId,
@@ -281,13 +378,17 @@ export const advancedSearch = async (query, collectionName, options = {}) => {
       strategies = [],
       languages = [],
       topK = 5,
-      scoreThreshold = 0.0
+      scoreThreshold = 0.05 // Even lower threshold
     } = options;
 
+    console.log(`Advanced search: documentId=${documentId}, topK=${topK}, scoreThreshold=${scoreThreshold}`);
+
     // Generate embedding for query
-    const model = genAI.getGenerativeModel({ model: 'embedding-001' });
-    const result = await model.embedContent(query);
-    const queryEmbedding = result.embedding.values;
+    const result = await ai.models.embedContent({
+      model: 'text-embedding-004',
+      contents: query,
+    });
+    const queryEmbedding = result.embeddings[0].values;
 
     // Build filter
     const mustConditions = [];
@@ -334,7 +435,7 @@ export const advancedSearch = async (query, collectionName, options = {}) => {
 
     const searchResult = await client.search(collectionName, searchRequest);
 
-    return searchResult.map(match => ({
+    const results = searchResult.map(match => ({
       text: match.payload.text,
       score: match.score,
       pageNumber: match.payload.pageNumber,
@@ -345,9 +446,25 @@ export const advancedSearch = async (query, collectionName, options = {}) => {
       language: match.payload.language,
       id: match.id,
     }));
+
+    console.log(`Advanced search completed: ${results.length} results found`);
+    return results;
   } catch (error) {
     console.error('Error in advanced search:', error);
-    throw error;
+    
+    // Try fallback search with just documentId filter
+    if (options.documentId) {
+      try {
+        console.log('Attempting fallback advanced search with just documentId');
+        const fallbackResults = await searchWithFilter(query, collectionName, options.documentId, options.topK);
+        console.log(`Fallback advanced search returned ${fallbackResults.length} results`);
+        return fallbackResults;
+      } catch (fallbackError) {
+        console.error('Fallback advanced search also failed:', fallbackError);
+      }
+    }
+    
+    return [];
   }
 };
 
@@ -369,6 +486,44 @@ export const batchUpsert = async (collectionName, points) => {
     return true;
   } catch (error) {
     console.error('Error in batch upsert:', error);
+    throw error;
+  }
+};
+
+// Utility function to create required indexes for existing collections
+export const createRequiredIndexes = async (collectionName) => {
+  try {
+    const client = initializeQdrant();
+    
+    // Create documentId index
+    await client.createPayloadIndex(collectionName, {
+      field_name: 'documentId',
+      field_schema: 'keyword'
+    });
+    console.log(`Created documentId index for collection: ${collectionName}`);
+    
+    // Create pageNumber index
+    await client.createPayloadIndex(collectionName, {
+      field_name: 'pageNumber',
+      field_schema: 'integer'
+    });
+    console.log(`Created pageNumber index for collection: ${collectionName}`);
+    
+    // Create strategy index
+    await client.createPayloadIndex(collectionName, {
+      field_name: 'strategy',
+      field_schema: 'keyword'
+    });
+    console.log(`Created strategy index for collection: ${collectionName}`);
+    
+    return true;
+  } catch (error) {
+    console.error('Error creating indexes:', error);
+    // Don't throw error if indexes already exist
+    if (error.message.includes('already exists')) {
+      console.log('Some indexes already exist, which is fine');
+      return true;
+    }
     throw error;
   }
 };
