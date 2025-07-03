@@ -38,11 +38,22 @@ const upload = multer({
   }
 });
 
-// Upload PDF
+// Upload PDF with chunking strategy option
 router.post('/upload', upload.single('pdf'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    // Get chunking strategy from request (default: hybrid)
+    const chunkingStrategy = req.body.chunkingStrategy || 'hybrid';
+    const validStrategies = ['sentence', 'paragraph', 'semantic', 'hybrid'];
+    
+    if (!validStrategies.includes(chunkingStrategy)) {
+      await fs.remove(req.file.path);
+      return res.status(400).json({ 
+        error: 'Invalid chunking strategy. Valid options: ' + validStrategies.join(', ')
+      });
     }
 
     // Check user's document limit
@@ -64,15 +75,18 @@ router.post('/upload', upload.single('pdf'), async (req, res) => {
       mimeType: req.file.mimetype,
       size: req.file.size,
       content: '', // Will be populated by PDF processing
-      processingStatus: 'uploading'
+      processingStatus: 'uploading',
+      metadata: {
+        chunkingStrategy: chunkingStrategy
+      }
     });
 
     await document.save();
 
-    // Process PDF asynchronously
-    processPDF(document._id, req.file.path)
+    // Process PDF asynchronously with specified strategy
+    processPDF(document._id, req.file.path, chunkingStrategy)
       .then(() => {
-        console.log(`PDF processing completed for document ${document._id}`);
+        console.log(`PDF processing completed for document ${document._id} using ${chunkingStrategy} strategy`);
       })
       .catch(error => {
         console.error(`PDF processing failed for document ${document._id}:`, error);
@@ -82,7 +96,8 @@ router.post('/upload', upload.single('pdf'), async (req, res) => {
       id: document._id,
       filename: document.originalName,
       size: document.size,
-      status: document.processingStatus
+      status: document.processingStatus,
+      chunkingStrategy: chunkingStrategy
     });
   } catch (error) {
     if (req.file) {
@@ -132,7 +147,7 @@ router.get('/documents/:id/status', async (req, res) => {
     const document = await Document.findOne({
       _id: req.params.id,
       userId: req.user._id
-    }).select('processingStatus processingProgress');
+    }).select('processingStatus processingProgress metadata');
 
     if (!document) {
       return res.status(404).json({ error: 'Document not found' });
@@ -140,11 +155,43 @@ router.get('/documents/:id/status', async (req, res) => {
 
     res.json({
       status: document.processingStatus,
-      progress: document.processingProgress
+      progress: document.processingProgress,
+      chunkingStrategy: document.metadata?.chunkingStrategy || 'hybrid'
     });
   } catch (error) {
     console.error('Get status error:', error);
     res.status(500).json({ error: 'Failed to fetch status' });
+  }
+});
+
+// Get document analytics
+router.get('/documents/:id/analytics', async (req, res) => {
+  try {
+    const document = await Document.findOne({
+      _id: req.params.id,
+      userId: req.user._id
+    });
+
+    if (!document) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    const analytics = {
+      totalChunks: document.chunks?.length || 0,
+      averageChunkSize: document.chunks?.length > 0 
+        ? Math.round(document.chunks.reduce((sum, chunk) => sum + chunk.text.length, 0) / document.chunks.length)
+        : 0,
+      chunkingStrategy: document.metadata?.chunkingStrategy || 'unknown',
+      processingTime: document.metadata?.processingTime || 'N/A',
+      language: document.metadata?.language || 'unknown',
+      wordCount: document.metadata?.wordCount || 0,
+      pages: document.metadata?.pages || 0
+    };
+
+    res.json(analytics);
+  } catch (error) {
+    console.error('Get analytics error:', error);
+    res.status(500).json({ error: 'Failed to fetch analytics' });
   }
 });
 

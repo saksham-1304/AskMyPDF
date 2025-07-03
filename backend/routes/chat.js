@@ -2,7 +2,8 @@ import express from 'express';
 import { body, validationResult } from 'express-validator';
 import Chat from '../models/Chat.js';
 import Document from '../models/Document.js';
-import { generateResponse } from '../services/chatService.js';
+import { generateResponse, evaluateResponse } from '../services/chatService.js';
+import ragService from '../services/ragService.js';
 
 const router = express.Router();
 
@@ -56,9 +57,10 @@ router.post('/start', [
   }
 });
 
-// Send message
+// Send message with enhanced RAG
 router.post('/:chatId/message', [
-  body('message').isLength({ min: 1, max: 1000 }).trim()
+  body('message').isLength({ min: 1, max: 1000 }).trim(),
+  body('options').optional().isObject()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -67,7 +69,7 @@ router.post('/:chatId/message', [
     }
 
     const { chatId } = req.params;
-    const { message } = req.body;
+    const { message, options = {} } = req.body;
 
     // Find chat
     const chat = await Chat.findOne({
@@ -103,8 +105,8 @@ router.post('/:chatId/message', [
     });
 
     try {
-      // Generate AI response
-      const response = await generateResponse(message, chat.documentId, chat.messages);
+      // Generate AI response using enhanced RAG
+      const response = await generateResponse(message, chat.documentId, chat.messages, options);
       
       // Add AI response
       chat.messages.push({
@@ -187,6 +189,79 @@ router.delete('/:chatId', async (req, res) => {
   } catch (error) {
     console.error('Delete chat error:', error);
     res.status(500).json({ error: 'Failed to delete chat' });
+  }
+});
+
+// New endpoint: Get follow-up questions
+router.post('/:chatId/follow-up', [
+  body('lastMessage').isLength({ min: 1 }).trim()
+], async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const { lastMessage } = req.body;
+
+    const chat = await Chat.findOne({
+      _id: chatId,
+      userId: req.user._id
+    }).populate('documentId');
+
+    if (!chat) {
+      return res.status(404).json({ error: 'Chat not found' });
+    }
+
+    const followUpQuestions = await ragService.generateFollowUpQuestions(
+      lastMessage,
+      chat.messages[chat.messages.length - 1]?.content || '',
+      chat.documentId
+    );
+
+    res.json({ followUpQuestions });
+  } catch (error) {
+    console.error('Follow-up questions error:', error);
+    res.status(500).json({ error: 'Failed to generate follow-up questions' });
+  }
+});
+
+// New endpoint: Evaluate response quality
+router.post('/:chatId/evaluate', [
+  body('messageIndex').isInt({ min: 0 }),
+  body('feedback').optional().isString()
+], async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const { messageIndex, feedback } = req.body;
+
+    const chat = await Chat.findOne({
+      _id: chatId,
+      userId: req.user._id
+    });
+
+    if (!chat || !chat.messages[messageIndex]) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    const message = chat.messages[messageIndex];
+    if (message.role !== 'assistant') {
+      return res.status(400).json({ error: 'Can only evaluate assistant messages' });
+    }
+
+    const evaluation = await evaluateResponse(
+      chat.messages[messageIndex - 1]?.content || '',
+      message.content
+    );
+
+    // Store feedback if provided
+    if (feedback) {
+      message.metadata = message.metadata || {};
+      message.metadata.userFeedback = feedback;
+      message.metadata.evaluatedAt = new Date();
+      await chat.save();
+    }
+
+    res.json({ evaluation });
+  } catch (error) {
+    console.error('Evaluation error:', error);
+    res.status(500).json({ error: 'Failed to evaluate response' });
   }
 });
 
