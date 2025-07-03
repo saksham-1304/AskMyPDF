@@ -1,7 +1,7 @@
 import documentProcessor from './documentProcessor.js';
 
 /**
- * PDF Service - Interface to document processor
+ * PDF Service - Interface to document processor with Qdrant
  * Maintains backward compatibility
  */
 export const processPDF = async (documentId, filePath, strategy = 'hybrid') => {

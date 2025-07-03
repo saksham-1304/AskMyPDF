@@ -57,7 +57,7 @@ router.post('/start', [
   }
 });
 
-// Send message with enhanced RAG
+// Send message with enhanced RAG using Qdrant
 router.post('/:chatId/message', [
   body('message').isLength({ min: 1, max: 1000 }).trim(),
   body('options').optional().isObject()
@@ -105,14 +105,17 @@ router.post('/:chatId/message', [
     });
 
     try {
-      // Generate AI response using enhanced RAG
+      // Generate AI response using enhanced RAG with Qdrant
       const response = await generateResponse(message, chat.documentId, chat.messages, options);
       
       // Add AI response
       chat.messages.push({
         role: 'assistant',
         content: response.content,
-        metadata: response.metadata
+        metadata: {
+          ...response.metadata,
+          vectorDatabase: 'qdrant'
+        }
       });
 
       await chat.save();
@@ -123,7 +126,10 @@ router.post('/:chatId/message', [
 
       res.json({
         message: response.content,
-        metadata: response.metadata
+        metadata: {
+          ...response.metadata,
+          vectorDatabase: 'qdrant'
+        }
       });
     } catch (aiError) {
       console.error('AI response error:', aiError);
@@ -192,7 +198,7 @@ router.delete('/:chatId', async (req, res) => {
   }
 });
 
-// New endpoint: Get follow-up questions
+// Enhanced endpoint: Get follow-up questions using Qdrant
 router.post('/:chatId/follow-up', [
   body('lastMessage').isLength({ min: 1 }).trim()
 ], async (req, res) => {
@@ -215,14 +221,17 @@ router.post('/:chatId/follow-up', [
       chat.documentId
     );
 
-    res.json({ followUpQuestions });
+    res.json({ 
+      followUpQuestions,
+      vectorDatabase: 'qdrant'
+    });
   } catch (error) {
     console.error('Follow-up questions error:', error);
     res.status(500).json({ error: 'Failed to generate follow-up questions' });
   }
 });
 
-// New endpoint: Evaluate response quality
+// Enhanced endpoint: Evaluate response quality with Qdrant context
 router.post('/:chatId/evaluate', [
   body('messageIndex').isInt({ min: 0 }),
   body('feedback').optional().isString()
@@ -255,13 +264,62 @@ router.post('/:chatId/evaluate', [
       message.metadata = message.metadata || {};
       message.metadata.userFeedback = feedback;
       message.metadata.evaluatedAt = new Date();
+      message.metadata.vectorDatabase = 'qdrant';
       await chat.save();
     }
 
-    res.json({ evaluation });
+    res.json({ 
+      evaluation: {
+        ...evaluation,
+        vectorDatabase: 'qdrant'
+      }
+    });
   } catch (error) {
     console.error('Evaluation error:', error);
     res.status(500).json({ error: 'Failed to evaluate response' });
+  }
+});
+
+// New endpoint: Search within document using Qdrant
+router.post('/:chatId/search', [
+  body('query').isLength({ min: 1 }).trim(),
+  body('options').optional().isObject()
+], async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const { query, options = {} } = req.body;
+
+    const chat = await Chat.findOne({
+      _id: chatId,
+      userId: req.user._id
+    }).populate('documentId');
+
+    if (!chat) {
+      return res.status(404).json({ error: 'Chat not found' });
+    }
+
+    const { advancedSearch } = await import('../services/qdrantService.js');
+    
+    const searchResults = await advancedSearch(
+      query,
+      chat.documentId.qdrantCollection,
+      {
+        documentId: chat.documentId._id,
+        topK: options.limit || 10,
+        scoreThreshold: options.threshold || 0.7,
+        ...options
+      }
+    );
+
+    res.json({
+      query,
+      results: searchResults,
+      vectorDatabase: 'qdrant',
+      collection: chat.documentId.qdrantCollection
+    });
+  } catch (error) {
+    console.error('Search error:', error);
+    res.status(500).json({ error: 'Failed to search document' });
   }
 });
 

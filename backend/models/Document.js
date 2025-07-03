@@ -33,7 +33,16 @@ const documentSchema = new mongoose.Schema({
     embedding: [Number],
     metadata: {
       pageNumber: Number,
-      chunkIndex: Number
+      chunkIndex: Number,
+      strategy: String,
+      topic: String,
+      wordCount: Number,
+      charCount: Number,
+      language: String,
+      vectorDatabase: {
+        type: String,
+        default: 'qdrant'
+      }
     }
   }],
   processingStatus: {
@@ -48,11 +57,20 @@ const documentSchema = new mongoose.Schema({
   metadata: {
     pages: Number,
     wordCount: Number,
-    language: String
+    language: String,
+    chunkingStrategy: String,
+    extractionMethod: String,
+    vectorDatabase: {
+      type: String,
+      default: 'qdrant'
+    }
   },
-  pineconeNamespace: {
+  // Changed from pineconeNamespace to qdrantCollection
+  qdrantCollection: {
     type: String,
-    unique: true
+    default: function() {
+      return process.env.QDRANT_COLLECTION_NAME || 'pdf_documents';
+    }
   }
 }, {
   timestamps: true
@@ -61,5 +79,6 @@ const documentSchema = new mongoose.Schema({
 // Index for efficient querying
 documentSchema.index({ userId: 1, createdAt: -1 });
 documentSchema.index({ processingStatus: 1 });
+documentSchema.index({ qdrantCollection: 1 });
 
 export default mongoose.model('Document', documentSchema);

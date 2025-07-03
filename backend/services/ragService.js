@@ -1,11 +1,11 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { searchSimilarChunks, generateEmbeddings } from './pineconeService.js';
+import { searchSimilarChunks, searchWithFilter, generateEmbeddings, advancedSearch } from './qdrantService.js';
 import Document from '../models/Document.js';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 /**
- * Enhanced RAG Pipeline Service
+ * Enhanced RAG Pipeline Service with Qdrant Integration
  * Implements a complete Retrieval-Augmented Generation system
  */
 class RAGService {
@@ -21,7 +21,8 @@ class RAGService {
       chunkOverlap: 200,
       chunkSize: 1000,
       reranking: true,
-      hybridSearch: true
+      hybridSearch: true,
+      collectionName: process.env.QDRANT_COLLECTION_NAME || 'pdf_documents'
     };
   }
 
@@ -35,7 +36,7 @@ class RAGService {
       // Step 1: Query preprocessing and expansion
       const processedQuery = await this.preprocessQuery(query, chatHistory);
       
-      // Step 2: Retrieval phase
+      // Step 2: Retrieval phase with Qdrant
       const retrievedChunks = await this.retrieveRelevantChunks(
         processedQuery, 
         document, 
@@ -62,13 +63,15 @@ class RAGService {
             text: chunk.text.slice(0, 200) + '...',
             score: chunk.score,
             pageNumber: chunk.pageNumber,
-            chunkIndex: chunk.chunkIndex
+            chunkIndex: chunk.chunkIndex,
+            strategy: chunk.strategy
           })),
           processingTime,
           tokensUsed: response.tokensUsed,
           queryExpansion: processedQuery.expanded,
           contextLength: rankedContext.length,
-          retrievalScore: this.calculateRetrievalScore(retrievedChunks)
+          retrievalScore: this.calculateRetrievalScore(retrievedChunks),
+          vectorDatabase: 'qdrant'
         }
       };
     } catch (error) {
@@ -123,15 +126,27 @@ Expanded query:`;
   }
 
   /**
-   * Step 2: Enhanced retrieval with hybrid search
+   * Step 2: Enhanced retrieval with hybrid search using Qdrant
    */
   async retrieveRelevantChunks(processedQuery, document, maxChunks) {
     try {
-      // Semantic search using embeddings
-      const semanticChunks = await searchSimilarChunks(
+      // Primary semantic search using Qdrant with document filter
+      const semanticChunks = await searchWithFilter(
         processedQuery.expanded,
-        document.pineconeNamespace,
+        this.config.collectionName,
+        document._id,
         maxChunks
+      );
+
+      // Advanced search with multiple strategies if available
+      const advancedChunks = await advancedSearch(
+        processedQuery.original,
+        this.config.collectionName,
+        {
+          documentId: document._id,
+          topK: maxChunks,
+          scoreThreshold: this.config.minRelevanceScore
+        }
       );
 
       // Keyword-based search for hybrid approach
@@ -145,6 +160,7 @@ Expanded query:`;
       const combinedChunks = this.combineSearchResults(
         semanticChunks,
         keywordChunks,
+        advancedChunks,
         maxChunks
       );
 
@@ -155,9 +171,10 @@ Expanded query:`;
     } catch (error) {
       console.error('Retrieval error:', error);
       // Fallback to basic search
-      return await searchSimilarChunks(
+      return await searchWithFilter(
         processedQuery.original,
-        document.pineconeNamespace,
+        this.config.collectionName,
+        document._id,
         maxChunks
       );
     }
@@ -190,7 +207,8 @@ Expanded query:`;
         score: score / queryTerms.length,
         pageNumber: chunk.metadata?.pageNumber || Math.floor(index / 5) + 1,
         chunkIndex: index,
-        source: 'keyword'
+        source: 'keyword',
+        strategy: chunk.metadata?.strategy || 'unknown'
       };
     });
 
@@ -201,9 +219,9 @@ Expanded query:`;
   }
 
   /**
-   * Combine semantic and keyword search results
+   * Combine semantic, advanced, and keyword search results
    */
-  combineSearchResults(semanticChunks, keywordChunks, maxResults) {
+  combineSearchResults(semanticChunks, keywordChunks, advancedChunks = [], maxResults) {
     const combined = new Map();
 
     // Add semantic results with higher weight
@@ -211,9 +229,25 @@ Expanded query:`;
       const key = `${chunk.chunkIndex}-${chunk.pageNumber}`;
       combined.set(key, {
         ...chunk,
-        score: chunk.score * 0.7, // Weight semantic search higher
+        score: chunk.score * 0.6, // Weight semantic search
         source: 'semantic'
       });
+    });
+
+    // Add advanced search results
+    advancedChunks.forEach(chunk => {
+      const key = `${chunk.chunkIndex}-${chunk.pageNumber}`;
+      if (combined.has(key)) {
+        const existing = combined.get(key);
+        existing.score = (existing.score + chunk.score * 0.7) / 2;
+        existing.source = 'hybrid';
+      } else {
+        combined.set(key, {
+          ...chunk,
+          score: chunk.score * 0.7,
+          source: 'advanced'
+        });
+      }
     });
 
     // Add keyword results, boosting score if already exists
@@ -342,7 +376,7 @@ Relevance score (0-1):`;
    * Build sophisticated generation prompt
    */
   buildGenerationPrompt(query, context, chatHistory, document) {
-    return `You are an AI assistant specialized in analyzing and answering questions about documents. You have access to relevant excerpts from "${document.originalName}".
+    return `You are an AI assistant specialized in analyzing and answering questions about documents. You have access to relevant excerpts from "${document.originalName}" retrieved using Qdrant vector database.
 
 INSTRUCTIONS:
 1. Answer the user's question based ONLY on the provided context
@@ -352,7 +386,7 @@ INSTRUCTIONS:
 5. Maintain conversation continuity with the chat history
 6. Use markdown formatting for better readability
 
-DOCUMENT CONTEXT:
+DOCUMENT CONTEXT (Retrieved via Qdrant Vector Search):
 ${context}
 
 CONVERSATION HISTORY:
@@ -376,12 +410,38 @@ ANSWER:`;
   }
 
   /**
+   * Generate follow-up questions based on context
+   */
+  async generateFollowUpQuestions(query, response, document) {
+    try {
+      const prompt = `
+Based on the user's question and the AI response about "${document.originalName}", generate 3 relevant follow-up questions that would help the user explore the document further.
+
+User Question: ${query}
+AI Response: ${response}
+
+Generate 3 follow-up questions:`;
+
+      const result = await this.model.generateContent(prompt);
+      const questions = await result.response.text();
+      
+      return questions.split('\n')
+        .filter(q => q.trim().length > 0)
+        .map(q => q.replace(/^\d+\.\s*/, '').trim())
+        .slice(0, 3);
+    } catch (error) {
+      console.error('Follow-up generation error:', error);
+      return [];
+    }
+  }
+
+  /**
    * Evaluate RAG pipeline performance
    */
   async evaluateResponse(query, generatedAnswer, groundTruth = null) {
     try {
       const evaluationPrompt = `
-Evaluate the quality of this AI-generated answer:
+Evaluate the quality of this AI-generated answer using Qdrant vector database:
 
 Query: ${query}
 Generated Answer: ${generatedAnswer}
@@ -399,7 +459,8 @@ Provide scores and brief explanations:`;
 
       return {
         evaluation,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        vectorDatabase: 'qdrant'
       };
     } catch (error) {
       console.error('Evaluation error:', error);

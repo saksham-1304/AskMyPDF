@@ -1,11 +1,11 @@
 import pdfParse from 'pdf-parse-new';
 import fs from 'fs-extra';
 import Document from '../models/Document.js';
-import { generateEmbeddings, storePineconeVectors } from './pineconeService.js';
+import { generateEmbeddings, storeQdrantVectors } from './qdrantService.js';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
- * Advanced Document Processing Service
+ * Advanced Document Processing Service with Qdrant Integration
  * Handles PDF processing with sophisticated chunking strategies
  */
 class DocumentProcessor {
@@ -16,10 +16,11 @@ class DocumentProcessor {
       semantic: this.semanticChunking.bind(this),
       hybrid: this.hybridChunking.bind(this)
     };
+    this.collectionName = process.env.QDRANT_COLLECTION_NAME || 'pdf_documents';
   }
 
   /**
-   * Main document processing pipeline
+   * Main document processing pipeline with Qdrant
    */
   async processDocument(documentId, filePath, strategy = 'hybrid') {
     try {
@@ -42,7 +43,8 @@ class DocumentProcessor {
         pages: extractedData.numpages,
         wordCount: extractedData.text.split(/\s+/).length,
         language: this.detectLanguage(extractedData.text),
-        extractionMethod: 'pdf-parse'
+        extractionMethod: 'pdf-parse',
+        chunkingStrategy: strategy
       };
       document.processingProgress = 30;
       await document.save();
@@ -68,11 +70,10 @@ class DocumentProcessor {
       document.processingProgress = 85;
       await document.save();
 
-      // Step 5: Store in vector database
-      const namespace = uuidv4();
-      await storePineconeVectors(enrichedChunks, namespace, document._id);
+      // Step 5: Store in Qdrant vector database
+      const collectionName = await storeQdrantVectors(enrichedChunks, this.collectionName, document._id);
       
-      document.pineconeNamespace = namespace;
+      document.qdrantCollection = collectionName;
       document.processingStatus = 'completed';
       document.processingProgress = 100;
       await document.save();
@@ -80,7 +81,7 @@ class DocumentProcessor {
       // Cleanup
       await fs.remove(filePath);
 
-      console.log(`Document processing completed for ${documentId} using ${strategy} strategy`);
+      console.log(`Document processing completed for ${documentId} using ${strategy} strategy with Qdrant`);
       return document;
     } catch (error) {
       console.error(`Document processing failed for ${documentId}:`, error);
@@ -350,7 +351,7 @@ class DocumentProcessor {
   }
 
   /**
-   * Enrich chunks with additional metadata
+   * Enrich chunks with additional metadata for Qdrant
    */
   enrichChunks(chunks, embeddings, extractedData) {
     return chunks.map((chunk, index) => ({
@@ -363,7 +364,8 @@ class DocumentProcessor {
         topic: chunk.topic,
         wordCount: chunk.text.split(/\s+/).length,
         charCount: chunk.text.length,
-        language: this.detectLanguage(chunk.text)
+        language: this.detectLanguage(chunk.text),
+        vectorDatabase: 'qdrant'
       }
     }));
   }

@@ -76,16 +76,17 @@ router.post('/upload', upload.single('pdf'), async (req, res) => {
       size: req.file.size,
       processingStatus: 'uploading',
       metadata: {
-        chunkingStrategy: chunkingStrategy
+        chunkingStrategy: chunkingStrategy,
+        vectorDatabase: 'qdrant'
       }
     });
 
     await document.save();
 
-    // Process PDF asynchronously with specified strategy
+    // Process PDF asynchronously with specified strategy using Qdrant
     processPDF(document._id, req.file.path, chunkingStrategy)
       .then(() => {
-        console.log(`PDF processing completed for document ${document._id} using ${chunkingStrategy} strategy`);
+        console.log(`PDF processing completed for document ${document._id} using ${chunkingStrategy} strategy with Qdrant`);
       })
       .catch(error => {
         console.error(`PDF processing failed for document ${document._id}:`, error);
@@ -96,7 +97,8 @@ router.post('/upload', upload.single('pdf'), async (req, res) => {
       filename: document.originalName,
       size: document.size,
       status: document.processingStatus,
-      chunkingStrategy: chunkingStrategy
+      chunkingStrategy: chunkingStrategy,
+      vectorDatabase: 'qdrant'
     });
   } catch (error) {
     if (req.file) {
@@ -155,7 +157,8 @@ router.get('/documents/:id/status', async (req, res) => {
     res.json({
       status: document.processingStatus,
       progress: document.processingProgress,
-      chunkingStrategy: document.metadata?.chunkingStrategy || 'hybrid'
+      chunkingStrategy: document.metadata?.chunkingStrategy || 'hybrid',
+      vectorDatabase: document.metadata?.vectorDatabase || 'qdrant'
     });
   } catch (error) {
     console.error('Get status error:', error);
@@ -184,7 +187,9 @@ router.get('/documents/:id/analytics', async (req, res) => {
       processingTime: document.metadata?.processingTime || 'N/A',
       language: document.metadata?.language || 'unknown',
       wordCount: document.metadata?.wordCount || 0,
-      pages: document.metadata?.pages || 0
+      pages: document.metadata?.pages || 0,
+      vectorDatabase: document.metadata?.vectorDatabase || 'qdrant',
+      qdrantCollection: document.qdrantCollection
     };
 
     res.json(analytics);
@@ -206,13 +211,13 @@ router.delete('/documents/:id', async (req, res) => {
       return res.status(404).json({ error: 'Document not found' });
     }
 
-    // Delete from Pinecone if it exists
-    if (document.pineconeNamespace) {
+    // Delete from Qdrant if it exists
+    if (document.qdrantCollection) {
       try {
-        const { deletePineconeVectors } = await import('../services/pineconeService.js');
-        await deletePineconeVectors(document.pineconeNamespace);
+        const { deleteQdrantVectors } = await import('../services/qdrantService.js');
+        await deleteQdrantVectors(document.qdrantCollection, document._id);
       } catch (error) {
-        console.error('Failed to delete from Pinecone:', error);
+        console.error('Failed to delete from Qdrant:', error);
       }
     }
 
@@ -220,6 +225,35 @@ router.delete('/documents/:id', async (req, res) => {
   } catch (error) {
     console.error('Delete document error:', error);
     res.status(500).json({ error: 'Failed to delete document' });
+  }
+});
+
+// New endpoint: Get Qdrant collection info
+router.get('/documents/:id/vector-info', async (req, res) => {
+  try {
+    const document = await Document.findOne({
+      _id: req.params.id,
+      userId: req.user._id
+    });
+
+    if (!document) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    const { getCollectionInfo, countVectors } = await import('../services/qdrantService.js');
+    
+    const collectionInfo = await getCollectionInfo(document.qdrantCollection);
+    const vectorCount = await countVectors(document.qdrantCollection, document._id);
+
+    res.json({
+      collection: document.qdrantCollection,
+      vectorCount: vectorCount,
+      collectionInfo: collectionInfo,
+      vectorDatabase: 'qdrant'
+    });
+  } catch (error) {
+    console.error('Get vector info error:', error);
+    res.status(500).json({ error: 'Failed to fetch vector information' });
   }
 });
 
