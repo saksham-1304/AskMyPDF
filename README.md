@@ -48,9 +48,9 @@ A full-stack MERN application that allows users to upload PDF documents and have
    cd pdf-chat-app
    ```
 
-2. **Install dependencies**
+2. **Install all dependencies**
    ```bash
-   npm install --prefix backend && npm install --prefix frontend
+   npm run install:all
    ```
 
 3. **Environment Configuration**
@@ -74,28 +74,56 @@ A full-stack MERN application that allows users to upload PDF documents and have
 
 4. **Build and Start the Application**
    ```bash
-   npm run build:full --prefix backend
-   npm run start --prefix backend
+   npm run build
+   npm start
    ```
 
    The application will be available at `http://localhost:5000`
+
+### Your Exact Commands
+
+As requested, here are your exact commands:
+
+```bash
+# Install dependencies for both backend and frontend
+npm install --prefix backend && npm install --prefix frontend
+
+# Build frontend and place it in backend/public
+npm run build:full --prefix backend
+
+# Start the combined server
+npm run start --prefix backend
+```
+
+Or using the root package.json scripts:
+
+```bash
+# Install all dependencies
+npm run install:all
+
+# Build the application
+npm run build
+
+# Start the application
+npm start
+```
 
 ### Development Mode
 
 For development with hot reload:
 
-1. **Start the backend**
-   ```bash
-   npm run dev --prefix backend
-   ```
+```bash
+# Option 1: Run both frontend and backend in development mode
+npm run dev
 
-2. **Start the frontend** (in a separate terminal)
-   ```bash
-   npm run dev --prefix frontend
-   ```
+# Option 2: Run them separately
+npm run dev:backend    # Backend with nodemon
+npm run dev:frontend   # Frontend with Vite dev server
+```
 
-   - Backend: `http://localhost:5000`
-   - Frontend: `http://localhost:5173`
+Development URLs:
+- Backend: `http://localhost:5000`
+- Frontend (dev mode): `http://localhost:5173`
 
 ## API Setup Requirements
 
@@ -121,6 +149,7 @@ For development with hot reload:
 
 ```
 pdf-chat-app/
+├── package.json            # Root package.json with main scripts
 ├── backend/
 │   ├── middleware/          # Authentication, error handling
 │   ├── models/             # MongoDB schemas
@@ -128,6 +157,7 @@ pdf-chat-app/
 │   ├── services/           # Business logic (PDF, AI, Pinecone)
 │   ├── uploads/            # Temporary file storage
 │   ├── public/             # Frontend build output (after build)
+│   ├── package.json        # Backend dependencies
 │   └── server.js           # Express server
 ├── frontend/
 │   ├── src/
@@ -135,9 +165,30 @@ pdf-chat-app/
 │   │   ├── contexts/       # React contexts
 │   │   ├── pages/          # Page components
 │   │   └── services/       # API client
-│   └── dist/               # Build output (builds to ../backend/public)
+│   ├── package.json        # Frontend dependencies
+│   └── vite.config.ts      # Vite config (builds to ../backend/public)
 └── README.md
 ```
+
+## Available Scripts
+
+### Root Level Scripts
+- `npm run install:all` - Install dependencies for both backend and frontend
+- `npm run build` - Build the frontend and place it in backend/public
+- `npm start` - Start the production server
+- `npm run dev` - Run both backend and frontend in development mode
+- `npm run dev:backend` - Run only backend in development mode
+- `npm run dev:frontend` - Run only frontend in development mode
+- `npm run clean` - Clean all node_modules and build directories
+
+### Backend Scripts
+- `npm run dev --prefix backend` - Start backend with nodemon
+- `npm run start --prefix backend` - Start backend in production mode
+- `npm run build:full --prefix backend` - Build frontend from backend directory
+
+### Frontend Scripts
+- `npm run dev --prefix frontend` - Start Vite dev server
+- `npm run build --prefix frontend` - Build frontend to ../backend/public
 
 ## Usage
 
@@ -169,8 +220,8 @@ pdf-chat-app/
 
 The application is configured to serve the frontend from the backend server:
 
-1. **Build the frontend**: `npm run build:full --prefix backend`
-2. **Start the server**: `npm run start --prefix backend`
+1. **Build the frontend**: `npm run build`
+2. **Start the server**: `npm start`
 3. **Access the app**: Visit `http://localhost:5000`
 
 For production deployment:
@@ -178,6 +229,33 @@ For production deployment:
 - Use a process manager like PM2
 - Configure reverse proxy (nginx)
 - Set up SSL certificates
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Frontend not loading**: Make sure you've built the frontend first
+   ```bash
+   npm run build
+   ```
+
+2. **API calls failing**: Check that the backend is running and environment variables are set
+
+3. **MongoDB connection issues**: Ensure MongoDB is running and the connection string is correct
+
+4. **Missing dependencies**: Run the install command again
+   ```bash
+   npm run install:all
+   ```
+
+### Clean Installation
+If you encounter issues, try a clean installation:
+```bash
+npm run clean
+npm run install:all
+npm run build
+npm start
+```
 
 ## Contributing
 

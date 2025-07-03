@@ -29,6 +29,7 @@ const PORT = process.env.PORT || 5000;
 // Security middleware
 app.use(helmet({
   contentSecurityPolicy: false, // Disable CSP for serving React app
+  crossOriginEmbedderPolicy: false,
 }));
 app.use(compression());
 
@@ -51,18 +52,19 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Logging
-app.use(morgan('combined'));
-
-// Serve static files from the React app build
-app.use(express.static(path.join(__dirname, 'public')));
+if (process.env.NODE_ENV !== 'production') {
+  app.use(morgan('dev'));
+} else {
+  app.use(morgan('combined'));
+}
 
 // MongoDB connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/pdfchat', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-.then(() => console.log('Connected to MongoDB'))
-.catch(err => console.error('MongoDB connection error:', err));
+.then(() => console.log('✅ Connected to MongoDB'))
+.catch(err => console.error('❌ MongoDB connection error:', err));
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -74,19 +76,39 @@ app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'OK', 
     timestamp: new Date().toISOString(),
-    uptime: process.uptime()
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
+// Serve static files from the React app build
+const publicPath = path.join(__dirname, 'public');
+app.use(express.static(publicPath));
+
 // Catch all handler: send back React's index.html file for any non-API routes
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  const indexPath = path.join(publicPath, 'index.html');
+  if (require('fs').existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).json({ 
+      error: 'Frontend not built. Please run: npm run build' 
+    });
+  }
 });
 
 // Error handling middleware
 app.use(errorHandler);
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Frontend served from: ${path.join(__dirname, 'public')}`);
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📁 Frontend served from: ${publicPath}`);
+  console.log(`🌐 Application URL: http://localhost:${PORT}`);
+  console.log(`🔗 API URL: http://localhost:${PORT}/api`);
+  
+  if (process.env.NODE_ENV === 'development') {
+    console.log('\n📝 Development Notes:');
+    console.log('- Make sure to build the frontend first: npm run build');
+    console.log('- For development with hot reload, use: npm run dev');
+  }
 });
