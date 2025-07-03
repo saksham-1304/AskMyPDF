@@ -1,16 +1,43 @@
 import { Pinecone } from '@pinecone-database/pinecone';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const pinecone = new Pinecone({
-  apiKey: process.env.PINECONE_API_KEY,
-});
+// Lazy initialization variables
+let pinecone = null;
+let genAI = null;
+let index = null;
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// Function to initialize Pinecone client
+const initializePinecone = () => {
+  if (!pinecone) {
+    // Check if environment variables are loaded
+    if (!process.env.PINECONE_API_KEY || !process.env.PINECONE_ENVIRONMENT) {
+      throw new Error('Pinecone configuration missing: PINECONE_API_KEY and PINECONE_ENVIRONMENT are required');
+    }
+    
+    pinecone = new Pinecone({
+      apiKey: process.env.PINECONE_API_KEY,
+      environment: process.env.PINECONE_ENVIRONMENT,
+    });
+    
+    index = pinecone.index(process.env.PINECONE_INDEX_NAME);
+  }
+  return { pinecone, index };
+};
 
-const index = pinecone.index(process.env.PINECONE_INDEX_NAME);
+// Function to initialize Google Generative AI
+const initializeGenAI = () => {
+  if (!genAI) {
+    if (!process.env.GEMINI_API_KEY) {
+      throw new Error('Google Generative AI configuration missing: GEMINI_API_KEY is required');
+    }
+    genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  }
+  return genAI;
+};
 
 export const generateEmbeddings = async (texts) => {
   try {
+    const genAI = initializeGenAI();
     const model = genAI.getGenerativeModel({ model: 'embedding-001' });
     const embeddings = [];
     
@@ -39,6 +66,8 @@ export const generateEmbeddings = async (texts) => {
 
 export const storePineconeVectors = async (chunks, namespace, documentId) => {
   try {
+    const { index } = initializePinecone();
+    
     const vectors = chunks.map((chunk, index) => ({
       id: `${documentId}-${index}`,
       values: chunk.embedding,
@@ -66,6 +95,9 @@ export const storePineconeVectors = async (chunks, namespace, documentId) => {
 
 export const searchSimilarChunks = async (query, namespace, topK = 5) => {
   try {
+    const { index } = initializePinecone();
+    const genAI = initializeGenAI();
+    
     // Generate embedding for query
     const model = genAI.getGenerativeModel({ model: 'embedding-001' });
     const result = await model.embedContent(query);
@@ -92,6 +124,7 @@ export const searchSimilarChunks = async (query, namespace, topK = 5) => {
 
 export const deletePineconeVectors = async (namespace) => {
   try {
+    const { index } = initializePinecone();
     await index.namespace(namespace).deleteAll();
     console.log(`Deleted all vectors from namespace ${namespace}`);
   } catch (error) {

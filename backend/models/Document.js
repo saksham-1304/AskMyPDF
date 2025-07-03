@@ -24,7 +24,9 @@ const documentSchema = new mongoose.Schema({
   },
   content: {
     type: String,
-    required: true
+    required: function() {
+      return this.processingStatus === 'completed';
+    }
   },
   chunks: [{
     text: String,

@@ -8,6 +8,7 @@ import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import { fileURLToPath } from 'url';
 import path from 'path';
+import fs from 'fs';
 
 // Import routes
 import authRoutes from './routes/auth.js';
@@ -88,7 +89,7 @@ app.use(express.static(publicPath));
 // Catch all handler: send back React's index.html file for any non-API routes
 app.get('*', (req, res) => {
   const indexPath = path.join(publicPath, 'index.html');
-  if (require('fs').existsSync(indexPath)) {
+  if (fs.existsSync(indexPath)) {
     res.sendFile(indexPath);
   } else {
     res.status(404).json({ 

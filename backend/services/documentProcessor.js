@@ -1,4 +1,4 @@
-import pdfParse from 'pdf-parse';
+import pdfParse from 'pdf-parse-new';
 import fs from 'fs-extra';
 import Document from '../models/Document.js';
 import { generateEmbeddings, storePineconeVectors } from './pineconeService.js';

@@ -74,7 +74,6 @@ router.post('/upload', upload.single('pdf'), async (req, res) => {
       originalName: req.file.originalname,
       mimeType: req.file.mimetype,
       size: req.file.size,
-      content: '', // Will be populated by PDF processing
       processingStatus: 'uploading',
       metadata: {
         chunkingStrategy: chunkingStrategy
