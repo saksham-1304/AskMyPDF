@@ -291,13 +291,15 @@ const Dashboard: React.FC = () => {
                   }
                 </p>
                 {documents.length === 0 && (
-                  <AnimatedButton
-                    variant="gradient"
-                    onClick={() => setShowUpload(true)}
-                    icon={<Plus className="h-4 w-4" />}
-                  >
-                    Upload your first PDF
-                  </AnimatedButton>
+                  <div className="flex justify-center">
+                    <AnimatedButton
+                      variant="gradient"
+                      onClick={() => setShowUpload(true)}
+                      icon={<Plus className="h-4 w-4" />}
+                    >
+                      Upload your first PDF
+                    </AnimatedButton>
+                  </div>
                 )}
               </GlassCard>
             </motion.div>
