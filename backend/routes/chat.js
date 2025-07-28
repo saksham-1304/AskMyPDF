@@ -323,4 +323,24 @@ router.post('/:chatId/search', [
   }
 });
 
+// New endpoint: Get AI engine status for monitoring
+router.get('/engine-status', async (req, res) => {
+  try {
+    const engineStatus = await ragService.getEngineStatus();
+    
+    // Add current usage preference
+    const currentEngine = ragService.alchemystService?.isEnabled() ? 'alchemyst-primary' : 'gemini-primary';
+    
+    res.json({
+      currentEngine,
+      engines: engineStatus,
+      timestamp: new Date().toISOString(),
+      fallbackStrategy: 'alchemyst-ai → gemini'
+    });
+  } catch (error) {
+    console.error('Engine status error:', error);
+    res.status(500).json({ error: 'Failed to get engine status' });
+  }
+});
+
 export default router;

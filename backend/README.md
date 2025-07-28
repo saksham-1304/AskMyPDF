@@ -4,8 +4,10 @@
 [![Express.js](https://img.shields.io/badge/Express.js-4.18+-blue.svg)](https://expressjs.com/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-6+-green.svg)](https://mongodb.com/)
 [![Qdrant](https://img.shields.io/badge/Qdrant-Vector%20DB-orange.svg)](https://qdrant.tech/)
+[![Alchemyst AI](https://img.shields.io/badge/Alchemyst%20AI-Primary%20Engine-purple.svg)](https://alchemyst.ai/)
+[![Gemini AI](https://img.shields.io/badge/Gemini%20AI-Fallback-blue.svg)](https://gemini.google.com/)
 
-> 🚀 **Robust Express.js backend with advanced RAG pipeline, vector search, and AI-powered document processing using Google Gemini and Qdrant vector database.**
+> 🚀 **Advanced Express.js backend with sophisticated dual AI engine architecture (Alchemyst AI primary with Context Lake + Google Gemini fallback), enhanced RAG pipeline, Qdrant vector database integration, and enterprise-grade security features for maximum performance and reliability.**
 
 ## 🌟 Features
 
@@ -22,11 +24,16 @@
 - **Vector Embeddings**: Google Gemini text-embedding-004
 - **Progress Tracking**: Real-time processing status updates
 
-### 🧠 RAG Pipeline
-- **Hybrid Search**: Semantic + keyword search
-- **Context Retrieval**: Intelligent chunk selection
-- **Query Expansion**: AI-powered query enhancement
-- **Response Generation**: Google Gemini 2.0 Flash
+### 🧠 Enhanced RAG Pipeline with Dual AI Support
+- **Dual AI Engine Architecture**: Primary Alchemyst AI with Google Gemini fallback
+- **Intelligent Fallback System**: Automatic engine switching for reliability
+- **Dynamic Workflow Planning**: Alchemyst AI's advanced workflow optimization
+- **Context Lake Integration**: Enhanced context processing capabilities
+- **Hybrid Search**: Semantic + keyword search for optimal relevance
+- **Context Retrieval**: Intelligent chunk selection with multiple strategies
+- **Query Expansion**: AI-powered query enhancement for better retrieval
+- **Real-time Monitoring**: AI engine health and performance tracking via `/api/chat/engine-status`
+- **Streaming Responses**: Real-time token streaming for immediate feedback
 
 ### 🔍 Vector Database
 - **Qdrant Integration**: High-performance vector search
@@ -151,8 +158,12 @@ MONGODB_URI=mongodb://localhost:27017/pdfchat
 # JWT
 JWT_SECRET=your-super-secret-jwt-key-here
 
-# Google Gemini API
+# Google Gemini API (Required - Fallback Engine)
 GEMINI_API_KEY=your-gemini-api-key-here
+
+# Alchemyst AI API (Optional - Primary Engine for Enhanced Features)
+ALCHEMYST_API_KEY=your-alchemyst-api-key-here
+ALCHEMYST_API_URL=https://platform-backend.getalchemystai.com/api/v1
 
 # Qdrant Vector Database
 QDRANT_URL=http://localhost:6333
@@ -186,59 +197,87 @@ backend/
 │   ├── 📄 chat.js             # Chat management routes
 │   └── 📄 pdf.js              # Document processing routes
 ├── 📁 services/               # Business logic layer
-│   ├── 📄 chatService.js      # Chat operations
-│   ├── 📄 documentProcessor.js # PDF processing
+│   ├── 📄 alchemystService.js # **NEW**: Alchemyst AI integration
+│   ├── 📄 chatService.js      # Chat operations with dual AI support
+│   ├── 📄 documentProcessor.js # PDF processing with enhanced chunking
 │   ├── 📄 gemini.js           # Google Gemini client
 │   ├── 📄 pdfService.js       # PDF service interface
 │   ├── 📄 qdrantService.js    # Vector database operations
-│   └── 📄 ragService.js       # RAG pipeline
+│   └── 📄 ragService.js       # Enhanced RAG pipeline with dual engines
 ├── 📁 public/                 # Static files (built frontend)
 ├── 📁 uploads/                # Temporary file uploads
 ├── 📄 package.json            # Dependencies and scripts
-└── 📄 server.js               # Express server entry point
+├── 📄 server.js               # Express server entry point
+└── 📄 test-alchemyst.js       # **NEW**: Alchemyst AI testing script
 ```
 
 ## 🛠️ Core Services
 
-### 📄 Document Processor
+### � Alchemyst AI Service
+```javascript
+class AlchemystService {
+  // Check if service is enabled
+  isEnabled()
+  
+  // Health monitoring
+  async healthCheck()
+  
+  // Generate responses with streaming
+  async generateResponse(messages, options)
+  
+  // Test connection
+  async testConnection()
+  
+  // Format messages for API
+  formatMessagesForAlchemyst(messages)
+}
+```
+
+### �📄 Document Processor
 ```javascript
 class DocumentProcessor {
-  // PDF text extraction
+  // PDF text extraction with enhanced metadata
   async extractPDFContent(filePath)
   
   // Multiple chunking strategies
-  sentenceBasedChunking(text, numPages)
-  paragraphBasedChunking(text, numPages)
-  semanticChunking(text, numPages)
-  hybridChunking(text, numPages)
+  sentenceBasedChunking(text, numPages, maxChunkSize = 1000, overlap = 200)
+  paragraphBasedChunking(text, numPages, maxChunkSize = 1500, overlap = 300)
+  semanticChunking(text, numPages, maxChunkSize = 1200)
+  hybridChunking(text, numPages) // Combines multiple approaches
   
-  // Embedding generation
+  // Embedding generation with batching
   async generateChunkEmbeddings(chunks)
 }
 ```
 
-### 🧠 RAG Service
+### 🧠 Enhanced RAG Service
 ```javascript
 class RAGService {
-  // Main pipeline
+  // Main pipeline with dual AI engine support
   async generateResponse(query, document, chatHistory)
+  async generateResponseWithAlchemyst(query, document, chatHistory, options)
   
-  // Query processing
+  // Query processing and expansion
   async preprocessQuery(query, chatHistory)
   
-  // Hybrid retrieval
-  async retrieveRelevantChunks(query, document)
+  // Hybrid retrieval with multiple strategies
+  async retrieveRelevantChunks(query, document, maxChunks)
   
-  // Response generation
-  async generateAnswer(query, context, chatHistory)
+  // Context ranking and filtering
+  rankAndFilterContext(chunks, query)
+  
+  // Engine status monitoring
+  async getEngineStatus()
 }
 ```
 
 ### 🔍 Qdrant Service
 ```javascript
-// Vector operations
+// Vector operations with advanced features
 export const storeQdrantVectors = async (chunks, collectionName, documentId)
 export const searchSimilarChunks = async (query, collectionName, topK)
+export const searchWithFilter = async (query, collectionName, documentId)
+export const advancedSearch = async (query, collectionName, options)
 export const searchWithFilter = async (query, collectionName, documentId)
 export const advancedSearch = async (query, collectionName, options)
 ```
@@ -265,12 +304,15 @@ export const advancedSearch = async (query, collectionName, options)
 ### Chat Operations
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/chat/start` | Start new chat |
-| POST | `/api/chat/:id/message` | Send message |
-| GET | `/api/chat/:id` | Get chat history |
-| GET | `/api/chat/user/chats` | List user chats |
-| DELETE | `/api/chat/:id` | Delete chat |
-| POST | `/api/chat/:id/follow-up` | Generate follow-up questions |
+| POST | `/api/chat/start` | Start new chat session |
+| POST | `/api/chat/:id/message` | Send message with dual AI engine support |
+| GET | `/api/chat/:id` | Get chat history with metadata |
+| GET | `/api/chat/user/chats` | List user chat sessions |
+| DELETE | `/api/chat/:id` | Delete chat session |
+| POST | `/api/chat/:id/follow-up` | Generate AI-powered follow-up questions |
+| POST | `/api/chat/:id/evaluate` | Evaluate response quality metrics |
+| POST | `/api/chat/:id/search` | Advanced document search using Qdrant |
+| GET | `/api/chat/engine-status` | **NEW**: Real-time AI engine status monitoring |
 
 ## 📊 Data Models
 
@@ -542,7 +584,16 @@ npm start
 4. Write tests
 5. Submit pull request
 
-## 📄 License
+## � Support & Contact
+
+For support or questions about the backend:
+
+- 📧 **Email**: [sakshamsinghrathore1304@gmail.com](mailto:sakshamsinghrathore1304@gmail.com)
+- 💼 **LinkedIn**: [Saksham Singh Rathore](https://www.linkedin.com/in/saksham-singh-rathore1304/)
+- 🐛 **Issues**: Found a bug or have a feature request? Please [open an issue](https://github.com/saksham-1304/AskMyPDF/issues) on GitHub
+- 💡 **Discussions**: Join the conversation in our [GitHub Discussions](https://github.com/saksham-1304/AskMyPDF/discussions)
+
+## �📄 License
 
 MIT License - see LICENSE file for details.
 

@@ -62,7 +62,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
             transition={{ delay: 0.3 }}
             className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2"
           >
-            Join ChatPDF! 🚀
+            Join AskMyPDF! 🚀
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 20 }}

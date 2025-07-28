@@ -4,45 +4,52 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5+-blue.svg)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-5+-purple.svg)](https://vitejs.dev/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-3+-teal.svg)](https://tailwindcss.com/)
+[![Framer Motion](https://img.shields.io/badge/Framer%20Motion-Animations-ff69b4.svg)](https://www.framer.com/motion/)
 
-> 🚀 **Modern React frontend with TypeScript, featuring a beautiful responsive UI, real-time chat interface, and intelligent document management built with Vite and Tailwind CSS.**
+> 🚀 **Modern React frontend with TypeScript, featuring stunning glassmorphism design, Framer Motion animations, real-time chat interface, and intelligent document management built with Vite and Tailwind CSS.**
 
 ## 🌟 Features
 
-### 🎨 Modern UI/UX
+### 🎨 Modern Glassmorphism UI/UX
+- **Glassmorphism Design**: Beautiful backdrop-blur effects and transparency
+- **Framer Motion Animations**: Smooth, engaging micro-interactions and transitions
 - **Responsive Design**: Mobile-first approach with Tailwind CSS
-- **Glassmorphism**: Modern design with glass effects
-- **Dark Mode Ready**: Adaptive color schemes
-- **Loading States**: Smooth loading animations and skeletons
-- **Toast Notifications**: Real-time feedback with react-hot-toast
+- **Dark Mode Support**: Adaptive theming with seamless transitions
+- **Animated Components**: Custom animated buttons, loading states, and floating elements
+- **Glass Cards**: Elegant glassmorphism components throughout the interface
+- **Toast Notifications**: Beautiful real-time feedback with react-hot-toast
 
-### 🔐 Authentication
-- **JWT-based Auth**: Secure token management
-- **Protected Routes**: Route-level authentication
-- **Context Management**: Global auth state
-- **Auto-logout**: Token expiration handling
-- **Form Validation**: Real-time input validation
+### 🔐 Authentication & Security
+- **JWT-based Auth**: Secure token management with automatic refresh
+- **Protected Routes**: Route-level authentication with context management
+- **Global Auth State**: React Context for authentication state
+- **Auto-logout**: Intelligent token expiration handling
+- **Form Validation**: Real-time input validation with visual feedback
 
-### 📄 Document Management
-- **Drag & Drop**: Intuitive file upload with react-dropzone
-- **Progress Tracking**: Real-time upload and processing progress
-- **File Validation**: Client-side file type and size validation
-- **Document Gallery**: Beautiful grid layout for documents
-- **Search & Filter**: Advanced document filtering
+### 📄 Advanced Document Management
+- **Drag & Drop Upload**: Intuitive file upload with react-dropzone and progress tracking
+- **Real-time Progress**: Live upload and processing status updates
+- **File Validation**: Client-side file type, size, and format validation
+- **Document Gallery**: Beautiful grid layout with animated cards
+- **Advanced Search & Filter**: Dynamic document filtering and search capabilities
+- **Processing Status**: Visual indicators for document processing states
 
-### 💬 Chat Interface
-- **Real-time Chat**: Smooth messaging experience
-- **Markdown Support**: Rich text rendering with code highlighting
-- **Message History**: Persistent conversation history
-- **Context Awareness**: Conversation flow management
-- **Copy to Clipboard**: Easy message copying
+### 💬 Enhanced Chat Interface
+- **Real-time Messaging**: Smooth chat experience with optimistic updates
+- **Markdown Support**: Rich text rendering with syntax highlighting
+- **Message History**: Persistent conversation history with scroll management
+- **Context Awareness**: Intelligent conversation flow management
+- **Copy to Clipboard**: Easy message copying with toast feedback
+- **AI Engine Status**: Real-time display of current AI engine (Alchemyst/Gemini)
+- **Streaming Responses**: Live response rendering as AI generates content
 
-### 🚀 Performance
-- **Code Splitting**: Lazy loading for optimal performance
-- **React Query**: Intelligent data fetching and caching
-- **Optimistic Updates**: Immediate UI feedback
-- **Bundle Optimization**: Vite's efficient bundling
-- **Tree Shaking**: Unused code elimination
+### 🚀 Performance & Optimization
+- **Code Splitting**: Lazy loading for optimal performance and faster initial loads
+- **React Query**: Intelligent data fetching, caching, and synchronization
+- **Optimistic Updates**: Immediate UI feedback for better user experience
+- **Bundle Optimization**: Vite's efficient bundling with tree shaking
+- **Asset Optimization**: Optimized images, fonts, and static assets
+- **Memory Management**: Efficient component lifecycle and cleanup
 
 ## 🏗️ Architecture
 
@@ -263,32 +270,104 @@ const Chat: React.FC = () => {
 };
 ```
 
-### 📊 Dashboard Component
+### 🎨 Enhanced Header Component
 ```typescript
-const Dashboard: React.FC = () => {
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filter, setFilter] = useState('all');
-  
-  // React Query for data fetching
-  const { data: documents, isLoading, error } = useQuery(
-    'documents',
-    () => api.get('/pdf/documents'),
-    {
-      refetchOnWindowFocus: false,
-      staleTime: 5 * 60 * 1000, // 5 minutes
-    }
+const Header: React.FC = () => {
+  const { user, logout } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  return (
+    <motion.header 
+      initial={{ y: -100 }}
+      animate={{ y: 0 }}
+      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      className="sticky top-0 z-50 backdrop-blur-xl bg-white/10 dark:bg-black/10 border-b border-white/20"
+    >
+      {/* Animated logo with rotating background */}
+      <motion.div
+        animate={{ rotate: 360 }}
+        transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+        className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl blur-sm opacity-75"
+      />
+      
+      {/* Glassmorphism theme toggle */}
+      <motion.button
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+        onClick={toggleTheme}
+        className="p-2 rounded-xl bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-all"
+      >
+        <AnimatePresence mode="wait">
+          {isDark ? <Sun /> : <Moon />}
+        </AnimatePresence>
+      </motion.button>
+    </motion.header>
   );
-  
-  // Filtered documents based on search and filter
-  const filteredDocuments = useMemo(() => {
-    return documents?.filter(doc => 
-      doc.originalName.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      (filter === 'all' || doc.processingStatus === filter)
-    ) || [];
-  }, [documents, searchTerm, filter]);
 };
+```
+
+### 🪟 Glassmorphism UI Components
+```typescript
+// GlassCard Component
+const GlassCard: React.FC = ({ children, className }) => (
+  <div className={`
+    backdrop-blur-xl bg-white/10 dark:bg-black/10 
+    border border-white/20 dark:border-white/10 
+    rounded-xl shadow-xl hover:shadow-2xl 
+    transition-all duration-300 ${className}
+  `}>
+    {children}
+  </div>
+);
+
+// AnimatedButton Component
+const AnimatedButton: React.FC = ({ variant = 'primary', children }) => {
+  const variants = {
+    primary: 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg hover:shadow-xl',
+    ghost: 'text-gray-700 dark:text-gray-300 hover:bg-white/10 dark:hover:bg-white/5',
+    gradient: 'bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white'
+  };
+
+  return (
+    <motion.button
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      transition={{ type: "spring", stiffness: 400, damping: 17 }}
+      className={`${variants[variant]} px-6 py-3 rounded-xl font-medium transition-all`}
+    >
+      {children}
+    </motion.button>
+  );
+};
+
+// FloatingElements Component
+const FloatingElements: React.FC = () => (
+  <div className="fixed inset-0 overflow-hidden pointer-events-none">
+    {[...Array(6)].map((_, i) => (
+      <motion.div
+        key={i}
+        className="absolute bg-gradient-to-r from-blue-400/10 to-purple-400/10 rounded-full"
+        animate={{
+          x: [0, 100, 0],
+          y: [0, -100, 0],
+          scale: [1, 1.2, 1],
+        }}
+        transition={{
+          duration: 10 + i * 2,
+          repeat: Infinity,
+          ease: "linear"
+        }}
+        style={{
+          width: 200 + i * 50,
+          height: 200 + i * 50,
+          left: `${i * 20}%`,
+          top: `${i * 15}%`,
+        }}
+      />
+    ))}
+  </div>
+);
 ```
 
 ## 🎨 UI Components
@@ -730,7 +809,16 @@ getTTFB(sendToAnalytics);
 4. Write tests for new features
 5. Submit pull request
 
-## 📄 License
+## � Support & Contact
+
+For support or questions about the frontend:
+
+- 📧 **Email**: [sakshamsinghrathore1304@gmail.com](mailto:sakshamsinghrathore1304@gmail.com)
+- 💼 **LinkedIn**: [Saksham Singh Rathore](https://www.linkedin.com/in/saksham-singh-rathore1304/)
+- 🐛 **Issues**: Found a bug or have a feature request? Please [open an issue](https://github.com/saksham-1304/AskMyPDF/issues) on GitHub
+- 💡 **Discussions**: Join the conversation in our [GitHub Discussions](https://github.com/saksham-1304/AskMyPDF/discussions)
+
+## �📄 License
 
 MIT License - see LICENSE file for details.
 

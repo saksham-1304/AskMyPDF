@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FileText, User, LogOut, Settings, Moon, Sun, Menu, X } from 'lucide-react';
+import { FileText, User, LogOut, Moon, Sun, Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -45,7 +45,7 @@ const Header: React.FC = () => {
                 </div>
               </div>
               <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent">
-                ChatPDF
+                AskMyPDF
               </span>
             </Link>
           </motion.div>
