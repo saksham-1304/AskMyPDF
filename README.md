@@ -128,39 +128,8 @@ graph TB
     Q --> V
     BB --> FF
     DD --> KK
-```
-        S --> V[Dual AI Generation]
-        W[Chat Service] --> X[Engine Selection]
-        W --> Y[Fallback Management]
-    end
-    
-    subgraph "AI/ML Layer"
-        Z[Alchemyst AI - Primary] --> AA[Dynamic Workflows]
-        Z --> AB[Context Lake]
-        AC[Google Gemini - Fallback] --> AD[Text Generation]
-        AC --> AE[Embeddings]
-        AF[Qdrant Vector DB] --> AG[Semantic Search]
-        AF --> AH[Advanced Filtering]
-    end
-    
-    subgraph "Data Layer"
-        AI[MongoDB] --> AJ[User Data]
-        AI --> AK[Document Metadata]
-        AI --> AL[Chat History]
-        AF --> AM[Vector Storage]
-        AF --> AN[Document Chunks]
-    end
-    
-    A --> F
-    F --> J
-    F --> L
-    F --> N
-    O --> S
-    S --> Z
-    S --> AC
-    S --> AF
-    V --> W
-    S --> AI
+    X --> S
+    X --> V
 ```
 
 ## 📊 System Flow
@@ -208,11 +177,6 @@ sequenceDiagram
     B->>M: Save conversation history
     B->>F: Stream AI response with metadata
     F->>U: Real-time response display
-```
-    
-    B->>M: Save conversation
-    B->>F: Return response with metadata
-    F->>U: Display answer with engine info
 ```
 
 ## 🚀 Quick Start
@@ -460,6 +424,42 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Alchemyst AI**: For providing advanced AI capabilities with dynamic workflow planning
 - **Google Gemini**: For reliable AI capabilities and embeddings
 - **Qdrant**: For efficient vector database operations
+- **MongoDB**: For flexible document storage
+- **React Community**: For excellent documentation and tools
+
+## 🧪 Testing & Development
+
+### Backend Testing
+```bash
+# Run Alchemyst AI integration test
+cd backend
+npm run test:alchemyst
+
+# Run all backend tests
+npm test
+```
+
+### Engine Status Monitoring
+The application includes built-in AI engine monitoring:
+- Real-time health checks for both AI engines
+- Automatic fallback detection
+- Performance metrics tracking
+- Engine status API endpoint: `GET /api/chat/engine-status`
+
+## 📞 Support & Contact
+
+For support or questions, feel free to reach out:
+
+- 📧 **Email**: [sakshamsinghrathore1304@gmail.com](mailto:sakshamsinghrathore1304@gmail.com)
+- 💼 **LinkedIn**: [Saksham Singh Rathore](https://www.linkedin.com/in/saksham-singh-rathore1304/)
+- 🐛 **Issues**: Found a bug or have a feature request? Please [open an issue](https://github.com/saksham-1304/AskMyPDF/issues) on GitHub
+- 💡 **Discussions**: Join the conversation in our [GitHub Discussions](https://github.com/saksham-1304/AskMyPDF/discussions)
+
+---
+
+<div align="center">
+  <strong>🚀 Built with ❤️ using modern web technologies</strong>
+</div>
 - **MongoDB**: For flexible document storage
 - **React Community**: For excellent documentation and tools
 
