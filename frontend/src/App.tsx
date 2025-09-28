@@ -11,6 +11,8 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Chat from './pages/Chat';
+import MultimodalDashboard from './pages/MultimodalDashboard';
+import MultimodalChat from './pages/MultimodalChat';
 import Profile from './pages/Profile';
 import LoadingSpinner from './components/LoadingSpinner';
 
@@ -97,6 +99,19 @@ function AppContent() {
                 </motion.div>
               </ProtectedRoute>
             } />
+            <Route path="/multimodal" element={
+              <ProtectedRoute>
+                <motion.div
+                  key="multimodal"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <MultimodalDashboard />
+                </motion.div>
+              </ProtectedRoute>
+            } />
             <Route path="/chat/:documentId" element={
               <ProtectedRoute>
                 <motion.div
@@ -107,6 +122,19 @@ function AppContent() {
                   transition={{ duration: 0.3 }}
                 >
                   <Chat />
+                </motion.div>
+              </ProtectedRoute>
+            } />
+            <Route path="/multimodal-chat/:documentId" element={
+              <ProtectedRoute>
+                <motion.div
+                  key="multimodal-chat"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 1.05 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <MultimodalChat />
                 </motion.div>
               </ProtectedRoute>
             } />
@@ -124,6 +152,7 @@ function AppContent() {
               </ProtectedRoute>
             } />
             <Route path="/" element={<Navigate to="/dashboard" />} />
+            <Route path="/multimodal" element={<Navigate to="/multimodal" />} />
           </Routes>
         </AnimatePresence>
       </main>

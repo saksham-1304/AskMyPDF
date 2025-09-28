@@ -14,6 +14,8 @@ import fs from 'fs';
 import authRoutes from './routes/auth.js';
 import pdfRoutes from './routes/pdf.js';
 import chatRoutes from './routes/chat.js';
+import multimodalRoutes from './routes/multimodal.js';
+import multimodalChatRoutes from './routes/multimodalChat.js';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler.js';
@@ -71,6 +73,8 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/pdfchat',
 app.use('/api/auth', authRoutes);
 app.use('/api/pdf', authenticate, pdfRoutes);
 app.use('/api/chat', authenticate, chatRoutes);
+app.use('/api/multimodal', authenticate, multimodalRoutes);
+app.use('/api/multimodal-chat', authenticate, multimodalChatRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

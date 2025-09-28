@@ -57,6 +57,9 @@ const Header: React.FC = () => {
                 <NavLink to="/dashboard" active={location.pathname === '/dashboard'}>
                   Dashboard
                 </NavLink>
+                <NavLink to="/multimodal" active={location.pathname === '/multimodal'}>
+                  Multimodal
+                </NavLink>
                 <NavLink to="/profile" active={location.pathname === '/profile'}>
                   Profile
                 </NavLink>
@@ -156,6 +159,9 @@ const Header: React.FC = () => {
               <GlassCard className="p-4 space-y-2">
                 <MobileNavLink to="/dashboard" onClick={() => setIsMenuOpen(false)}>
                   Dashboard
+                </MobileNavLink>
+                <MobileNavLink to="/multimodal" onClick={() => setIsMenuOpen(false)}>
+                  Multimodal
                 </MobileNavLink>
                 <MobileNavLink to="/profile" onClick={() => setIsMenuOpen(false)}>
                   Profile
