@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Send, ArrowLeft, FileText, Bot, User, Loader2, AlertCircle, Copy, Sparkles, Brain, Image, Music, Eye, Mic } from 'lucide-react';
+import { Send, ArrowLeft, FileText, Bot, User, Loader as Loader2, CircleAlert as AlertCircle, Copy, Sparkles, Brain, Image, Music, Eye, Mic } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';

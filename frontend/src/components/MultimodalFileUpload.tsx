@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, FileText, Image, Music, X, CheckCircle, AlertCircle, Sparkles } from 'lucide-react';
+import { Upload, FileText, Image, Music, X, CircleCheck as CheckCircle, CircleAlert as AlertCircle, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../services/api';
 import toast from 'react-hot-toast';

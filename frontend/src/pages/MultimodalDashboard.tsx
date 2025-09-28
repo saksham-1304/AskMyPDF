@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Upload, MessageCircle, Trash2, Clock, Image, Music, Search, Filter, Sparkles, Eye, Mic, FileIcon, Plus } from 'lucide-react';
+import { FileText, Upload, MessageCircle, Trash2, Clock, Image, Music, Search, ListFilter as Filter, Sparkles, Eye, Mic, File as FileIcon, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
